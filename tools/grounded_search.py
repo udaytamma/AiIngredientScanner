@@ -110,13 +110,19 @@ def grounded_ingredient_search(ingredient_name: str) -> IngredientData | None:
         # Parse the response
         ingredient_data = _parse_search_response(ingredient_name, text)
 
-        # Save to Qdrant for future lookups
-        _save_to_qdrant(ingredient_data)
+        # Save to Qdrant for future lookups (non-blocking)
+        try:
+            _save_to_qdrant(ingredient_data)
+        except Exception as save_err:
+            logger.warning(f"Failed to save '{ingredient_name}' to Qdrant: {save_err}")
+            # Continue anyway - we still have the data
 
         return ingredient_data
 
     except Exception as e:
         logger.error(f"Grounded search error for '{ingredient_name}': {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 

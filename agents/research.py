@@ -39,7 +39,7 @@ def research_ingredients(state: WorkflowState) -> dict:
 
     raw_ingredients = state["raw_ingredients"]
     ingredient_count = len(raw_ingredients)
-    logger.info(f"Researching {ingredient_count} ingredients")
+    logger.info(f"Researching {ingredient_count} ingredients: {raw_ingredients}")
 
     routing_history = state.get("routing_history", []).copy()
     routing_history.append("research")
@@ -56,6 +56,9 @@ def research_ingredients(state: WorkflowState) -> dict:
     logger.info(
         f"Research complete: {len(ingredient_data)} ingredients processed in {elapsed:.2f}s"
     )
+    # Debug: Log all ingredient names in ingredient_data
+    ingredient_names = [ing.get("name", "UNNAMED") for ing in ingredient_data]
+    logger.info(f"Ingredient data contains: {ingredient_names}")
 
     # Update stage timings
     stage_timings = state.get("stage_timings") or StageTiming(
@@ -199,6 +202,8 @@ def _research_single_ingredient(ingredient_name: str) -> IngredientData | None:
     Returns:
         IngredientData if successful, None otherwise.
     """
+    logger.info(f">>> Starting research for: '{ingredient_name}'")
+
     # Try vector database first
     logger.debug(f"Looking up '{ingredient_name}' in Qdrant")
     result = lookup_ingredient(ingredient_name)
@@ -225,9 +230,10 @@ def _research_single_ingredient(ingredient_name: str) -> IngredientData | None:
     grounded_result = grounded_ingredient_search(ingredient_name)
 
     if grounded_result:
-        logger.info(f"Found '{ingredient_name}' via Google Search")
+        logger.info(f"<<< Found '{ingredient_name}' via Google Search")
         return grounded_result
 
+    logger.warning(f"<<< No data found for '{ingredient_name}' - will use unknown record")
     return None
 
 

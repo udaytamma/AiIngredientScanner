@@ -40,3 +40,10 @@ htmlcov/
 
 # Logs
 logs/
+
+# Mobile (React Native / Expo)
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/*.log
+mobile/.env
