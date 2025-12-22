@@ -1,0 +1,36 @@
+# Core Framework
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-google-vertexai>=2.0.0
+langchain-community>=0.3.0
+
+# Google Cloud / Gemini AI
+google-genai>=1.55.0  # Google Generative AI SDK (same as EmailAssistant)
+google-auth>=2.35.0
+
+# Vertex AI (preserved for future use - currently using google-genai instead)
+# google-cloud-aiplatform>=1.71.0
+
+# Vector Database
+qdrant-client>=1.12.0
+
+# Session Management
+redis>=5.2.0
+
+# Observability
+langsmith>=0.2.0
+
+# Web UI
+streamlit>=1.40.0
+
+# Utilities
+python-dotenv>=1.0.1
+pydantic>=2.10.0
+
+# Testing
+pytest>=8.3.0
+pytest-cov>=6.0.0
+pytest-asyncio>=0.24.0
+
+# Type checking
+mypy>=1.13.0

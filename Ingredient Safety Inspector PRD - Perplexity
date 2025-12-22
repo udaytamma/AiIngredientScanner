@@ -1,0 +1,446 @@
+# Ingredient Safety Assistant: Project Requirements Document
+
+---
+
+## Executive Summary
+
+**Project Name:** Ingredient Safety Assistant  
+**Version:** 1.0  
+**Status:** Requirements Phase  
+**Date:** December 19, 2025  
+
+Build an AI-powered ingredient safety assistant that helps consumers quickly understand the safety of snack, food, and cosmetic products by analyzing ingredient lists, personal risk factors (allergies, skin type), and current research, using a multi-agent architecture deployed on Google Cloud Run with Gemini and Vertex AI Grounding.
+
+**Primary v1 Goal:** Demonstrate multi-agent orchestration with validation loops and cloud-native deployment skills, while supporting a realistic but bounded feature set.
+
+---
+
+## 1. Problem Statement & Objectives
+
+### 1.1 Problem Definition
+
+Consumers face significant challenges when evaluating ingredients in snacks, food, or cosmetic products:
+
+| Challenge | Impact |
+|-----------|--------|
+| Information Overload | Products contain 20–40 ingredients with complex chemical names |
+| Lack of Expertise | 88% of consumers don't understand ingredient safety implications |
+| Time-Consuming | Manual research takes 20+ minutes per product |
+| No Personalization | Generic databases don't account for individual allergies/skin types |
+| No Validation | No way to verify if analysis is complete or accurate |
+
+### 1.2 Solution Approach
+
+This problem requires agentic AI rather than a simple LLM or sequential pipeline:
+
+- ✅ **Autonomous Decision-Making:** Research Agent decides which tools to use based on ingredient type
+- ✅ **Dynamic Tool Selection:** System chooses between vector search, web search, or both based on confidence
+- ✅ **Self-Correction:** Critic Agent validates quality and forces re-runs if needed
+- ✅ **Adaptive Behavior:** Analysis Agent adjusts detail based on user expertise and risk level
+- ✅ **Dynamic Routing:** Supervisor routes between agents based on intermediate results, not fixed paths
+
+### 1.3 Objectives (v1)
+
+- Reduce time to understand product safety from 20+ minutes to under 1 minute per product via automated multi-agent analysis
+- Provide personalized safety assessments that incorporate user allergies, skin type, and expertise level (beginner/expert)
+- Enforce a quality loop where a critic agent validates completeness, allergen coverage, and tone before returning results
+- Demonstrate production-grade agentic orchestration and cloud deployment on Google Cloud
+
+---
+
+## 2. How It Works: High-Level Architecture
+
+$$
+\text{User Input} \rightarrow \text{Supervisor} \rightarrow \begin{cases}
+\text{Research Agent} \rightarrow \text{Tool Selection} \\
+\text{Analysis Agent} \rightarrow \text{Personalization} \\
+\text{Critic Agent} \rightarrow \text{Validation}
+\end{cases} \rightarrow \text{Result (or Retry)}
+$$
+
+---
+
+## 3. Key Features
+
+### 🤖 Multi-Agent Orchestration
+
+- **Supervisor Agent:** Strategic routing and retry management (max 2 attempts)
+- **Research Agent:** Intelligent data gathering with autonomous tool selection
+- **Analysis Agent:** Personalized report generation adapting to user expertise
+- **Critic Agent:** Quality validation with authority to reject and force retries
+
+### 🎯 Personalization
+
+- **Allergen Detection:** Cross-references ingredients with user allergies
+- **Skin Type Adaptation:** Adjusts recommendations for sensitive/normal/oily/dry/combination skin
+- **Expertise Levels:** Beginner (simple language) vs Expert (technical details)
+- **Risk Prioritization:** Highlights high-risk ingredients prominently
+
+### 🛠️ Intelligent Tool Use
+
+- **Vector Search:** Qdrant semantic search for common ingredients
+- **Web Grounding:** Vertex AI Search integration when confidence < 0.7 or ingredient not found
+- **Custom Tools:** ingredient_lookup, safety_scorer, allergen_matcher (Python-based)
+
+### ✅ Quality Guarantees
+
+- **Completeness Check:** All input ingredients addressed
+- **Allergen Verification:** User allergens always flagged
+- **Consistency Validation:** Safety scores match descriptions
+- **Tone Appropriateness:** Language matches user expertise level
+
+### 📊 Full Observability
+
+- **LangSmith Tracing:** Complete agent decision visibility
+- **Structured Logging:** Track routing decisions, tool selections, validation results
+- **Performance Metrics:** Latency, cost, success rate per analysis
+
+---
+
+## 4. Core User Flows
+
+### 4.1 Input & Profile
+
+**User provides:**
+- Product name and full ingredient list (paste or upload text)
+- Personal profile: known allergies, skin type, expertise level (beginner/expert)
+
+**System stores:** Profile in Redis for session continuity and re-use
+
+### 4.2 Analysis Workflow: Agent Specifications
+
+#### 4.2.1 Supervisor Agent (Strategic Router)
+
+**Role:** Orchestrates workflow and manages agent routing
+
+**Decision Logic:**
+
+| State Condition | Next Agent | Reasoning |
+|---|---|---|
+| missing_ingredients | → Research | Need ingredient data |
+| data_complete + no_analysis | → Analysis | Generate safety report |
+| analysis_exists + not_validated | → Critic | Quality check needed |
+| critic_approved | → END | Return to user |
+| critic_rejected | → Analysis (retry) | Improve with feedback |
+| max_retries_exceeded | → END (partial) | Return best effort |
+
+#### 4.2.2 Research Agent (Data Gatherer)
+
+**Role:** Intelligent data gathering with autonomous tool selection
+
+**Tool Selection Strategy:**
+
+- **Common ingredient** (e.g., Niacinamide) → Qdrant vector search only
+- **Scientific name** (e.g., Tocopherol) → Qdrant first, Vertex AI Grounding fallback if confidence < 0.7
+- **Brand-specific/Unknown** → Vertex AI Grounding with Google Search immediately
+
+**Output:** Ingredient data with confidence scores and source citations
+
+#### 4.2.3 Analysis Agent (Report Generator)
+
+**Role:** Personalized safety analyst
+
+**Adaptive Behavior:**
+
+- **Beginner user:** Simple language, explain concepts, avoid jargon
+- **Expert user:** Technical terminology, research citations, detailed mechanisms
+- **High-risk ingredients:** Bold warnings, detailed cautions, alternatives
+- **User allergies present:** Prominent AVOID tags, allergen highlights
+
+**Output:** Personalized safety report with recommendations
+
+#### 4.2.4 Critic Agent (Quality Validator)
+
+**Role:** Quality assurance with reject/approve authority
+
+**Validation Checks:**
+
+- ✓ **Completeness:** All input ingredients addressed?
+- ✓ **Allergen Detection:** All user allergens flagged?
+- ✓ **Consistency:** Safety scores match concern descriptions?
+- ✓ **Tone Appropriateness:** Language matches user expertise?
+
+**Decision Authority:**
+
+- **APPROVE** → Workflow END, return to user
+- **REJECT** → Send back to Analysis Agent with feedback (max 2 retries)
+- **ESCALATE** → Supervisor returns partial results with disclaimer
+
+### 4.3 Output to User
+
+- **Product-level summary** with clear risk classification (e.g., low/medium/high)
+- **Highlighted list of:**
+  - High-risk ingredients with explanations and suggested alternatives
+  - Ingredients matching user allergies or known sensitivities (AVOID tags)
+- **Learning toggle:** Option to switch between beginner and expert explanations
+
+---
+
+## 5. Functional Requirements
+
+### 5.1 Multi-Agent Orchestration
+
+- Implement agents using **LangGraph** (Python) with explicit graph/state transitions for Supervisor, Research, Analysis, and Critic
+- Support configurable maximum retries for analysis (default: 2)
+- Log routing decisions, tool calls, and retry reasons for observability
+
+### 5.2 Data Sources & Tools
+
+#### 5.2.1 Vector Search (Qdrant Cloud)
+
+- Maintain a collection of ingredient embeddings and metadata (name variants, categories, baseline safety scores, notes)
+- Provide APIs for:
+  - Upsert/update ingredient records
+  - Semantic search by ingredient name
+
+#### 5.2.2 Grounded Web Search
+
+- Use Gemini via **Vertex AI Grounding with Google Search** for ingredients missing or low confidence in Qdrant
+- Ensure retrieval citations are available to reference key sources in expert mode
+
+#### 5.2.3 Python Tools (v1)
+
+- **`ingredient_lookup`:** Wraps Qdrant queries and returns normalized ingredient info
+- **`safety_scorer`:** Applies heuristics combining Qdrant data and grounded web info to derive risk scores
+- **`allergen_matcher`:** Cross-matches ingredients against user allergy list and flags matches
+
+### 5.3 Personalization & Risk Logic
+
+- Store user profile and session data in Redis (or equivalent) keyed by user/session ID
+- **Risk Scoring:**
+  - Combine ingredient baseline risk, regulatory flags (if available), and user factors (allergy, skin type)
+  - Ensure allergens always override and appear as top-priority warnings
+
+### 5.4 Quality Validation (Critic)
+
+Implement explicit checks:
+
+- **Coverage:** Count ingredients vs. analyzed ingredients; must match
+- **Allergy Detection:** Verify each allergy is either matched or explicitly stated as not found
+- **Tone:** Simple regex/heuristic checks for jargon in beginner mode, plus prompt constraints
+- Return structured feedback to Analysis Agent to guide revisions
+
+---
+
+## 6. Non-Functional Requirements
+
+### 6.1 Deployment & Infrastructure (GCP)
+
+**Runtime:** Containerized Streamlit app (Python) with LangGraph, running on **Cloud Run**
+
+**External Services:**
+
+- Gemini on Vertex AI (API) for all LLM calls, including Search-grounded queries
+- Qdrant Cloud for vector search
+- Redis (managed or self-hosted) for session and profile state
+
+**Configuration & Secrets:**
+
+- Environment variables or Secret Manager for:
+  - GEMINI / Vertex AI credentials
+  - Qdrant Cloud API key and URL
+  - Redis connection details
+
+**Scalability:**
+
+- Cloud Run auto-scaling based on request volume
+- v1 assumption: low to moderate traffic (personal portfolio project)
+
+### 6.2 Performance & Latency Targets (v1)
+
+- Single analysis run: < 30 seconds end-to-end (including all agent calls)
+- Research Agent (per ingredient): < 2 seconds average
+- Critic validation: < 5 seconds
+
+### 6.3 Observability & Evaluation
+
+**Tracing:** Integrate **LangSmith** for request-level tracing, showing agent routing, tool calls, and retry behavior
+
+**Logging:** Structured logs for:
+- Agent transitions and retry events
+- External calls (Qdrant, Vertex AI Grounding)
+- Error and fallback events
+
+**Quality Metrics (initial):**
+
+Per-request:
+- Number of critic rejections per run
+- Latency per analysis and per external tool
+
+Manual evaluation set:
+- A small, curated set of ingredient lists with expected risk profiles to validate behavior
+
+### 6.4 Security & Compliance (v1)
+
+- Sanitize and validate all user inputs before processing
+- Use HTTPS for all external API calls
+- Store no sensitive user health data beyond the current session (Redis expiry)
+- Document data retention policy
+
+---
+
+## 7. UI & UX Requirements
+
+**Framework:** Streamlit UI served from the same Cloud Run container
+
+**Key Screens:**
+
+#### 7.1 Input Form
+
+- Text area for ingredient list and optional product name
+- Controls for allergies (multi-select or comma-separated), skin type (dropdown), expertise level (radio)
+- Submit button with loading indicator
+
+#### 7.2 Results View
+
+- Collapsible panels for product summary and ingredient-level details
+- Clear risk badges (color-coded: green/yellow/red) and AVOID tags for allergens
+- Toggle for beginner/expert explanation style
+- Links to cited sources (from Vertex AI Grounding) in expert mode
+
+#### 7.3 Design Principles
+
+- Emphasize responsiveness and clear explanation over complex visuals in v1
+- Use accessible color contrasts and readable font sizes
+- Provide brief help text and examples for new users
+
+---
+
+## 8. Tech Stack Summary
+
+| Layer | Technology | Purpose | Cost Model |
+|-------|-----------|---------|-----------|
+| **LLM & Orchestration** | Gemini 2.0 Flash via Vertex AI | Multi-agent reasoning, all agents | Free tier (~1500 req/day) |
+| **Grounding** | Vertex AI Grounding + Google Search | Real-time ingredient research | Included with Vertex AI |
+| **Vector DB** | Qdrant Cloud | Ingredient embeddings, semantic search | Free tier (1 GB) |
+| **State & Memory** | Redis Cloud | User profiles, session context | Free tier (30 MB) |
+| **Agent Framework** | LangGraph | Multi-agent state management | Open source, free |
+| **UI** | Streamlit | User interface & interaction | Open source, free |
+| **Deployment** | Google Cloud Run | Serverless container hosting | Pay-per-use (~$0.24/M requests) |
+| **Observability** | LangSmith | Agent tracing & debugging | Free tier (5000 traces/month) |
+| **Monitoring** | Cloud Logging & Cloud Trace | Application logs & performance | Included with GCP |
+
+---
+
+## 9. Implementation Roadmap (Indicative)
+
+### Phase 1: Foundation (Week 1–2)
+- [ ] Set up GCP project, Cloud Run, Qdrant Cloud, Redis
+- [ ] Implement Supervisor Agent state machine in LangGraph
+- [ ] Build Research Agent with Qdrant + Vertex AI Grounding tool selection
+- [ ] Create ingredient_lookup and allergen_matcher tools
+
+### Phase 2: Analysis & Validation (Week 2–3)
+- [ ] Build Analysis Agent with personalization logic
+- [ ] Implement Critic Agent validation checks
+- [ ] Integrate LangSmith tracing
+- [ ] Build Streamlit UI (input form + results view)
+
+### Phase 3: Integration & Testing (Week 3–4)
+- [ ] End-to-end workflow testing with sample products
+- [ ] Manual quality evaluation on curated ingredient sets
+- [ ] Performance tuning (latency, token usage)
+- [ ] Dockerize and deploy to Cloud Run
+
+### Phase 4: Refinement & Documentation (Ongoing)
+- [ ] Polish UI and UX based on testing
+- [ ] Comprehensive README and deployment guide
+- [ ] Document architecture decisions for portfolio narrative
+
+---
+
+## 10. Success Criteria (v1)
+
+### Functional Success
+
+- All input ingredients are analyzed and addressed in output
+- User allergies are always detected and flagged prominently
+- Critic agent successfully validates report quality and rejects < 20% of analyses
+- System supports beginner and expert mode with tone-appropriate explanations
+
+### Technical Success
+
+- Multi-agent orchestration is clearly observable in LangSmith traces
+- Cloud Run deployment is stable and auto-scaling works
+- Latency is < 30 seconds per analysis (end-to-end)
+- Zero hallucinations in ingredient safety claims (validated manually on test set)
+
+### Portfolio Success
+
+- Clear narrative demonstrating:
+  - Multi-agent agentic AI design and implementation
+  - Autonomous tool selection and routing logic
+  - Quality validation and self-correction loops
+  - Production-grade GCP deployment and observability
+- Clean GitHub repo with README, architecture diagrams, and deployment instructions
+
+---
+
+## 11. Constraints & Assumptions
+
+### Constraints
+
+- v1 scope: limited to snacks, food, and cosmetic ingredients (no pharmaceuticals or medical claims)
+- Free/low-cost tier usage for all external services
+- Single-user or low-concurrency (personal project)
+- Ingredient database seeded manually or via public data (not scraping)
+
+### Assumptions
+
+- Users can provide ingredient lists in text format
+- Qdrant Cloud free tier (1 GB, ~400–1000 ingredient vectors) is sufficient for v1
+- Gemini and Vertex AI Grounding APIs remain accessible and stable
+- Google Search integration via Vertex AI Grounding is the preferred web data source
+
+---
+
+## 12. Future Enhancements (v2+)
+
+- **FastMCP Integration:** Wrap Python tools in MCP servers for structured tool exposition
+- **Advanced Personalization:** User accounts, historical analyses, trending ingredients
+- **Regulatory Database:** Integrate with FDA, EU, or other regulatory sources for authoritative data
+- **Image Recognition:** Accept product photos and auto-extract ingredient lists via OCR/vision
+- **Community Ratings:** Crowdsourced ingredient feedback and use-case ratings
+- **Cost Optimization:** Implement caching, batch processing, and model distillation for faster/cheaper inference
+
+---
+
+## Appendix: Reference Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Cloud Run Container                   │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  Streamlit UI (Input / Output)                     │ │
+│  └─────────────────┬──────────────────────────────────┘ │
+│                    │                                     │
+│  ┌─────────────────▼──────────────────────────────────┐ │
+│  │  LangGraph State Machine (4 Agents)                │ │
+│  │  ├── Supervisor (Router)                           │ │
+│  │  ├── Research (Tool Selection)                     │ │
+│  │  ├── Analysis (Report Generation)                  │ │
+│  │  └── Critic (Validation)                           │ │
+│  └─────────────────┬──────────────────────────────────┘ │
+│                    │                                     │
+│  ┌─────────────────▼──────────────────────────────────┐ │
+│  │  Python Tools                                      │ │
+│  │  ├── ingredient_lookup()                           │ │
+│  │  ├── safety_scorer()                               │ │
+│  │  └── allergen_matcher()                            │ │
+│  └─────────────────┬──────────────────────────────────┘ │
+└────────────────────┼────────────────────────────────────┘
+                     │
+        ┌────────────┼────────────┬────────────┐
+        │            │            │            │
+    ┌───▼──┐    ┌───▼──┐    ┌────▼────┐  ┌───▼──┐
+    │Qdrant│    │Vertex│    │  Redis  │  │Lang  │
+    │Cloud │    │  AI  │    │  Cloud  │  │Smith │
+    │(Vec) │    │Search│    │(State)  │  │(Obs.)│
+    └──────┘    └──────┘    └─────────┘  └──────┘
+```
+
+---
+
+**Document Version:** 1.0  
+**Last Updated:** December 19, 2025  
+**Prepared for:** Portfolio-driven Agentic AI Project
