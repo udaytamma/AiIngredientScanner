@@ -421,9 +421,14 @@ export function HomeScreen() {
         </TouchableOpacity>
 
         {/* Footer */}
-        <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
-          Powered by AI for accurate ingredient safety analysis
-        </Text>
+        <View style={styles.footerContainer}>
+          <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
+            Powered by AI
+          </Text>
+          <Text style={[styles.footerDisclaimer, { color: theme.colors.textMuted }]}>
+            AI can make mistakes, double check results
+          </Text>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -813,11 +818,21 @@ const styles = StyleSheet.create({
   },
 
   // Footer
+  footerContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
   footerText: {
     fontSize: 12,
     color: '#9ca3af',
     textAlign: 'center',
-    marginTop: 16,
+    fontWeight: '500',
+  },
+  footerDisclaimer: {
+    fontSize: 10,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginTop: 4,
   },
 
   // Profile Container
