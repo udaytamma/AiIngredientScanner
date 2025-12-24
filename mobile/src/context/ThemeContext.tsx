@@ -1,11 +1,44 @@
 /**
- * Theme context for managing light/dark mode across the app.
+ * Theme Context
+ *
+ * Provides application-wide theme management with support for light and dark modes.
+ * Uses React Context for efficient theme state propagation without prop drilling.
+ *
+ * Features:
+ * - Predefined light and dark color palettes
+ * - Theme toggle functionality
+ * - Type-safe theme consumption via useTheme hook
+ *
+ * Usage:
+ * ```tsx
+ * // Wrap app with ThemeProvider
+ * <ThemeProvider>
+ *   <App />
+ * </ThemeProvider>
+ *
+ * // Consume theme in components
+ * const { theme, toggleTheme } = useTheme();
+ * <View style={{ backgroundColor: theme.colors.background }} />
+ * ```
+ *
+ * @module context/ThemeContext
+ * @author Uday Tamma
+ * @license MIT
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { ThemeMode } from '../types';
 
-// Define color schemes
+// =============================================================================
+// Theme Definitions
+// =============================================================================
+
+/**
+ * Light theme color palette.
+ *
+ * Designed for optimal readability in bright environments with
+ * subtle shadows and clear visual hierarchy.
+ */
 export const lightTheme = {
   mode: 'light' as ThemeMode,
   colors: {
@@ -94,26 +127,56 @@ export const darkTheme = {
   },
 };
 
+// =============================================================================
+// Type Definitions
+// =============================================================================
+
+/** Theme object type derived from lightTheme structure */
 export type Theme = typeof lightTheme;
 
+/**
+ * Theme context value shape.
+ * Provides current theme, mode, and toggle functions.
+ */
 interface ThemeContextType {
+  /** Current theme object with color palette */
   theme: Theme;
+  /** Current theme mode identifier */
   themeMode: ThemeMode;
+  /** Toggles between light and dark modes */
   toggleTheme: () => void;
+  /** Directly sets the theme mode */
   setThemeMode: (mode: ThemeMode) => void;
 }
 
+// =============================================================================
+// Context & Provider
+// =============================================================================
+
+/** Theme context - undefined when accessed outside provider */
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+/** Props for ThemeProvider component */
 interface ThemeProviderProps {
   children: ReactNode;
 }
 
-export function ThemeProvider({ children }: ThemeProviderProps) {
+/**
+ * Theme provider component.
+ *
+ * Wraps the application to provide theme state and controls to all descendants.
+ * Manages the current theme mode and provides toggle functionality.
+ *
+ * @param props - Component props containing children
+ * @returns Provider component wrapping children with theme context
+ */
+export function ThemeProvider({ children }: ThemeProviderProps): React.JSX.Element {
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
 
+  // Select theme object based on current mode
   const theme = themeMode === 'light' ? lightTheme : darkTheme;
 
+  // Toggle handler for theme switching
   const toggleTheme = () => {
     setThemeMode(prev => prev === 'light' ? 'dark' : 'light');
   };
@@ -125,7 +188,32 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   );
 }
 
-export function useTheme() {
+// =============================================================================
+// Hook
+// =============================================================================
+
+/**
+ * Custom hook for consuming theme context.
+ *
+ * Provides access to current theme colors and toggle functions.
+ * Must be used within a ThemeProvider component tree.
+ *
+ * @returns Theme context value with colors and controls
+ * @throws Error if used outside of ThemeProvider
+ *
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const { theme, toggleTheme } = useTheme();
+ *   return (
+ *     <View style={{ backgroundColor: theme.colors.card }}>
+ *       <Button onPress={toggleTheme} title="Toggle Theme" />
+ *     </View>
+ *   );
+ * }
+ * ```
+ */
+export function useTheme(): ThemeContextType {
   const context = useContext(ThemeContext);
   if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');

@@ -1,6 +1,15 @@
-# Ingredient Scanner Mobile App
+# Ingredient Scanner Mobile & Web App
 
-React Native mobile application for the AI Ingredient Safety Analyzer. Scan product labels, get instant ingredient analysis, and receive personalized safety recommendations.
+Cross-platform React Native/Expo application for the AI Ingredient Safety Analyzer. Scan product labels, get instant ingredient analysis, and receive personalized safety recommendations.
+
+**Supports:** iOS, Android, and Web browsers
+
+## Live Demos
+
+| Platform | URL |
+|----------|-----|
+| Web App | Coming Soon |
+| API | https://api.zeroleaf.dev |
 
 ## Features
 
@@ -16,6 +25,7 @@ React Native mobile application for the AI Ingredient Safety Analyzer. Scan prod
 - **Expandable Cards** - Tap ingredients for detailed safety information
 - **Safety Visualization** - Color-coded bars and scores for quick assessment
 - **Allergen Warnings** - Prominent alerts for matched allergies
+- **Cross-Platform** - Same codebase for mobile and web
 
 ### Supported OCR Languages
 English, French, Spanish, German, Italian, Korean, Japanese, Chinese, Portuguese
@@ -29,7 +39,7 @@ English, French, Spanish, German, Italian, Korean, Japanese, Chinese, Portuguese
 | Node.js | 18+ |
 | npm | 9+ |
 | Expo CLI | Latest |
-| Expo Go app | iOS/Android |
+| Expo Go app | iOS/Android (optional for mobile testing) |
 
 ---
 
@@ -42,9 +52,15 @@ cd mobile
 npm install
 ```
 
-### 2. Configure API URL
+### 2. Configure API URL (Development Only)
 
-Find your machine's IP address:
+For local development, update the API URL in `src/services/api.ts`.
+
+The app automatically uses:
+- **Production** (web builds, native releases): `https://api.zeroleaf.dev`
+- **Development** (Expo Go): Local IP address
+
+To find your local IP:
 
 ```bash
 # macOS
@@ -57,34 +73,30 @@ hostname -I | awk '{print $1}'
 ipconfig | findstr IPv4
 ```
 
-Edit `src/services/api.ts`:
-
-```typescript
-const API_BASE_URL = 'http://YOUR_IP_ADDRESS:8000';
-```
-
-### 3. Start Backend API
-
-In a separate terminal:
-
-```bash
-cd /path/to/AiIngredientScanner
-source venv/bin/activate
-uvicorn api:app --host 0.0.0.0 --port 8000
-```
-
-### 4. Launch Mobile App
+### 3. Start Development Server
 
 ```bash
 cd mobile
 npx expo start
 ```
 
-### 5. Connect Your Device
+### 4. Run on Platform
 
+**Web Browser:**
+```bash
+# Press 'w' in Expo CLI, or:
+npx expo start --web
+```
+
+**Mobile (Expo Go):**
 1. Install **Expo Go** from App Store (iOS) or Play Store (Android)
 2. Scan the QR code displayed in terminal
-3. App loads on your device
+3. Ensure phone and computer are on same WiFi network
+
+**Mobile (Development Build):**
+```bash
+npx expo run:ios     # or run:android
+```
 
 ---
 
@@ -94,18 +106,20 @@ npx expo start
 mobile/
 ├── App.tsx                         # App entry with ThemeProvider
 ├── app.json                        # Expo configuration
-├── package.json                    # Dependencies
+├── package.json                    # Dependencies & scripts
 ├── tsconfig.json                   # TypeScript config
 │
 ├── src/
 │   ├── components/
-│   │   ├── ImageCapture.tsx        # Camera & gallery interface
+│   │   ├── ImageCapture.tsx        # Camera interface (native)
+│   │   ├── ImageCapture.web.tsx    # Camera interface (web)
 │   │   ├── IngredientCard.tsx      # Expandable ingredient details
 │   │   ├── ProfileSelector.tsx     # User profile & theme settings
 │   │   ├── ResultsHeader.tsx       # Analysis summary header
 │   │   ├── RiskBadge.tsx           # Risk level indicator
 │   │   ├── SafetyBar.tsx           # Safety score bar
-│   │   └── SafetyMeter.tsx         # Overall safety visualization
+│   │   ├── SafetyMeter.tsx         # Overall safety visualization
+│   │   └── index.ts                # Component exports
 │   │
 │   ├── screens/
 │   │   └── HomeScreen.tsx          # Main app screen (navigation hub)
@@ -114,15 +128,22 @@ mobile/
 │   │   └── ThemeContext.tsx        # Dark/Light theme state
 │   │
 │   ├── services/
-│   │   ├── api.ts                  # Backend API client
+│   │   ├── api.ts                  # Backend API client (auto-detects env)
 │   │   └── ocr.ts                  # Image processing & OCR
 │   │
 │   └── types/
 │       └── index.ts                # TypeScript definitions
 │
+├── __tests__/                      # Jest test files
+│   ├── api.test.ts
+│   ├── components.test.tsx
+│   ├── ThemeContext.test.tsx
+│   └── types.test.ts
+│
 └── assets/
     ├── icon.png                    # App icon
     ├── splash-icon.png             # Splash screen
+    ├── favicon.png                 # Web favicon
     └── adaptive-icon.png           # Android adaptive icon
 ```
 
@@ -266,7 +287,21 @@ const { theme, themeMode, toggleTheme } = useTheme();
 
 ## Building for Production
 
-### Development Build
+### Web Build
+
+```bash
+# Build static web files
+npm run build:web
+
+# Test locally
+npm run serve:web
+# Opens at http://localhost:3000
+
+# Deploy to hosting (Cloudflare Pages, Vercel, Netlify)
+# Upload the 'dist' folder
+```
+
+### Development Build (Native)
 
 ```bash
 npx expo prebuild
@@ -305,16 +340,49 @@ eas submit --platform ios
 
 ## Development
 
+### NPM Scripts
+
+```bash
+# Start development server
+npm start                 # or: npx expo start
+
+# Run on specific platform
+npm run web              # Web browser
+npm run ios              # iOS Simulator
+npm run android          # Android Emulator
+
+# Build web app
+npm run build:web        # Build static files
+npm run serve:web        # Serve locally
+
+# Testing
+npm test                 # Run all tests
+npm run test:watch       # Watch mode
+npm run test:coverage    # Coverage report
+
+# Code quality
+npm run typecheck        # TypeScript check
+npm run lint             # ESLint check
+```
+
 ### Type Checking
 
 ```bash
-npx tsc --noEmit
+npm run typecheck
+# or: npx tsc --noEmit
 ```
 
-### Linting
+### Testing
 
 ```bash
-npm run lint
+# Run all tests
+npm test
+
+# Watch mode for development
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
 ```
 
 ### Testing on Device
@@ -334,10 +402,22 @@ npx expo start --clear
 | Package | Purpose |
 |---------|---------|
 | `expo` | Development framework |
-| `expo-camera` | Camera access |
+| `expo-camera` | Camera access (native) |
 | `expo-image-picker` | Gallery selection |
 | `expo-status-bar` | Status bar styling |
 | `react-native-safe-area-context` | Safe area handling |
+| `react-native-web` | Web platform support |
+| `react-dom` | Web DOM rendering |
+| `axios` | HTTP client |
+
+### Dev Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| `jest` | Test runner |
+| `jest-expo` | Expo Jest preset |
+| `@testing-library/react-native` | Component testing |
+| `typescript` | Type checking |
 
 ---
 
@@ -345,6 +425,7 @@ npx expo start --clear
 
 | Version | Changes |
 |---------|---------|
+| 2.1.0 | Web platform support, comprehensive tests |
 | 2.0.0 | Dark/light theme, multi-language OCR |
 | 1.0.0 | Initial mobile app release |
 
@@ -353,5 +434,5 @@ npx expo start --clear
 ## Related Documentation
 
 - [Main Project README](../README.md)
-- [Phase 2 PRD](../../Documentation/AI_Ingredient_Scanner_Phase2_PRD.md)
-- [API Reference](../README.md#api-reference)
+- [API Documentation](https://api.zeroleaf.dev/docs)
+- [Portfolio](https://zeroleaf.dev)
