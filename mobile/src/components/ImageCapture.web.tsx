@@ -33,6 +33,8 @@ interface ImageCaptureProps {
   onImageCaptured: (uri: string) => void;
   /** Callback fired when user cancels the capture */
   onCancel: () => void;
+  /** Optional mode: 'camera' opens camera, 'gallery' opens file picker directly */
+  mode?: 'camera' | 'gallery';
 }
 
 /**
@@ -52,10 +54,11 @@ interface ImageCaptureProps {
  * />
  * ```
  */
-export function ImageCapture({ onImageCaptured, onCancel }: ImageCaptureProps) {
+export function ImageCapture({ onImageCaptured, onCancel, mode = 'camera' }: ImageCaptureProps) {
   // Camera stream state
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [hasCamera, setHasCamera] = useState<boolean | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
@@ -65,10 +68,71 @@ export function ImageCapture({ onImageCaptured, onCancel }: ImageCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /**
+   * Handles file selection from the file input.
+   */
+  const handleFileSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        // User cancelled file picker - call onCancel
+        if (mode === 'gallery') {
+          onCancel();
+        }
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+
+      // Convert file to data URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        if (dataUrl) {
+          onImageCaptured(dataUrl);
+        }
+      };
+      reader.onerror = () => {
+        alert('Failed to read image file. Please try again.');
+      };
+      reader.readAsDataURL(file);
+    },
+    [onImageCaptured, onCancel, mode]
+  );
+
+  /**
+   * Opens the file picker dialog.
+   */
+  const openFilePicker = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  // For gallery mode, trigger file picker immediately and return minimal UI
+  useEffect(() => {
+    if (mode === 'gallery') {
+      // Small delay to ensure input is mounted
+      const timer = setTimeout(() => {
+        if (fileInputRef.current) {
+          fileInputRef.current.click();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [mode]);
+
+  /**
    * Initializes camera stream on component mount.
    * Requests camera permission and sets up video preview.
    */
   useEffect(() => {
+    // Skip camera initialization if in gallery mode
+    if (mode === 'gallery') {
+      return;
+    }
+
     let mounted = true;
     let currentStream: MediaStream | null = null;
 
@@ -123,6 +187,13 @@ export function ImageCapture({ onImageCaptured, onCancel }: ImageCaptureProps) {
         currentStream.getTracks().forEach((track) => track.stop());
       }
     };
+  }, [mode]);
+
+  /**
+   * Handler for when video starts playing (camera is ready)
+   */
+  const handleVideoPlay = useCallback(() => {
+    setIsCameraReady(true);
   }, []);
 
   /**
@@ -158,43 +229,6 @@ export function ImageCapture({ onImageCaptured, onCancel }: ImageCaptureProps) {
   }, [isCapturing, onImageCaptured]);
 
   /**
-   * Handles file selection from the file input.
-   */
-  const handleFileSelect = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
-        return;
-      }
-
-      // Convert file to data URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        if (dataUrl) {
-          onImageCaptured(dataUrl);
-        }
-      };
-      reader.onerror = () => {
-        alert('Failed to read image file. Please try again.');
-      };
-      reader.readAsDataURL(file);
-    },
-    [onImageCaptured]
-  );
-
-  /**
-   * Opens the file picker dialog.
-   */
-  const openFilePicker = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  /**
    * Handles component cancellation and cleans up camera stream.
    */
   const handleCancel = useCallback(() => {
@@ -204,13 +238,38 @@ export function ImageCapture({ onImageCaptured, onCancel }: ImageCaptureProps) {
     onCancel();
   }, [stream, onCancel]);
 
+  // Gallery mode - minimal UI with file picker
+  if (mode === 'gallery') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6366f1" />
+          <Text style={styles.loadingText}>Opening photo picker...</Text>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef as any}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect as any}
+            style={{ display: 'none' }}
+          />
+
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   // Loading state while checking camera availability
   if (hasCamera === null) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#6366f1" />
-          <Text style={styles.loadingText}>Initializing camera...</Text>
+          <Text style={styles.loadingText}>Starting camera...</Text>
         </View>
       </View>
     );
@@ -257,6 +316,7 @@ export function ImageCapture({ onImageCaptured, onCancel }: ImageCaptureProps) {
         autoPlay
         playsInline
         muted
+        onPlay={handleVideoPlay}
         style={webStyles.video}
       />
 
@@ -271,6 +331,14 @@ export function ImageCapture({ onImageCaptured, onCancel }: ImageCaptureProps) {
         onChange={handleFileSelect as any}
         style={{ display: 'none' }}
       />
+
+      {/* Loading overlay while camera initializes */}
+      {!isCameraReady && (
+        <View style={styles.cameraLoadingOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.cameraLoadingText}>Starting camera...</Text>
+        </View>
+      )}
 
       {/* Overlay with controls */}
       <View style={styles.overlayContainer}>
@@ -291,21 +359,21 @@ export function ImageCapture({ onImageCaptured, onCancel }: ImageCaptureProps) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.captureButton, isCapturing && styles.capturing]}
+            style={[styles.captureButton, (isCapturing || !isCameraReady) && styles.capturing]}
             onPress={captureImage}
-            disabled={isCapturing}
+            disabled={isCapturing || !isCameraReady}
           >
             {isCapturing ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#6366f1" />
             ) : (
               <View style={styles.captureInner} />
             )}
           </TouchableOpacity>
 
           <View style={styles.controlButton}>
-            {/* Placeholder for symmetry - web doesn't need flip */}
-            <Text style={styles.controlIcon}>📷</Text>
-            <Text style={styles.controlLabel}>Camera</Text>
+            {/* Placeholder for symmetry */}
+            <Text style={styles.controlIcon}> </Text>
+            <Text style={styles.controlLabel}> </Text>
           </View>
         </View>
 
@@ -344,6 +412,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
   },
   loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  cameraLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraLoadingText: {
     color: '#fff',
     fontSize: 16,
     marginTop: 16,
@@ -437,6 +520,7 @@ const styles = StyleSheet.create({
   controlButton: {
     alignItems: 'center',
     padding: 10,
+    minWidth: 60,
   },
   controlIcon: {
     fontSize: 24,

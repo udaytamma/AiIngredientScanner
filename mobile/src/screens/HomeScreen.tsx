@@ -25,7 +25,7 @@ import { analyzeIngredients } from '../services/api';
 import { UserProfile, AnalysisResponse } from '../types';
 import { useTheme } from '../context/ThemeContext';
 
-type Screen = 'home' | 'camera' | 'profile' | 'results';
+type Screen = 'home' | 'camera' | 'gallery' | 'profile' | 'results';
 
 export function HomeScreen() {
   const { theme } = useTheme();
@@ -74,6 +74,13 @@ export function HomeScreen() {
   };
 
   const handlePickFromGallery = async () => {
+    // On web, use the ImageCapture component with gallery mode
+    if (Platform.OS === 'web') {
+      setCurrentScreen('gallery');
+      return;
+    }
+
+    // On native, use expo-image-picker
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -123,6 +130,18 @@ export function HomeScreen() {
       <ImageCapture
         onImageCaptured={handleImageCaptured}
         onCancel={() => setCurrentScreen('home')}
+        mode="camera"
+      />
+    );
+  }
+
+  // Gallery screen (web only - uses ImageCapture with gallery mode)
+  if (currentScreen === 'gallery') {
+    return (
+      <ImageCapture
+        onImageCaptured={handleImageCaptured}
+        onCancel={() => setCurrentScreen('home')}
+        mode="gallery"
       />
     );
   }

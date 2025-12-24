@@ -425,6 +425,7 @@ npx expo start --clear
 
 | Version | Changes |
 |---------|---------|
+| 2.1.1 | Fixed web camera/gallery flow, improved UX |
 | 2.1.0 | Web platform support, comprehensive tests |
 | 2.0.0 | Dark/light theme, multi-language OCR |
 | 1.0.0 | Initial mobile app release |

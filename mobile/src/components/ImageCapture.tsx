@@ -17,9 +17,11 @@ import * as ImagePicker from 'expo-image-picker';
 interface ImageCaptureProps {
   onImageCaptured: (uri: string) => void;
   onCancel: () => void;
+  /** Optional mode prop for web compatibility - not used on native */
+  mode?: 'camera' | 'gallery';
 }
 
-export function ImageCapture({ onImageCaptured, onCancel }: ImageCaptureProps) {
+export function ImageCapture({ onImageCaptured, onCancel, mode = 'camera' }: ImageCaptureProps) {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
