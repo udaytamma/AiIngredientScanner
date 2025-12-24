@@ -32,7 +32,6 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
-    "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^12.9.0",
     "@types/jest": "^29.5.14",
     "@types/react": "~19.1.0",
@@ -47,7 +46,7 @@
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg)"
     ],
     "setupFilesAfterEnv": [
-      "@testing-library/jest-native/extend-expect"
+      "@testing-library/react-native/extend-expect"
     ],
     "testMatch": [
       "**/__tests__/**/*.test.{ts,tsx}"
