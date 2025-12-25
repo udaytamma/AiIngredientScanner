@@ -31,6 +31,13 @@ The AI Ingredient Safety Analyzer helps users understand product ingredient safe
 - Expandable ingredient cards with detailed safety metrics
 - Offline-ready architecture
 
+### Authentication & User Management (Phase 3)
+- Google Sign-In with Firebase Authentication
+- User profile persistence with Firestore
+- Personalized settings sync across devices
+- Guest mode for anonymous usage
+- GDPR-compliant account deletion
+
 ### Supported Languages (OCR)
 English, French, Spanish, German, Italian, Korean, Japanese, Chinese, Portuguese
 
@@ -164,14 +171,17 @@ AiIngredientScanner/
 │   └── session.py              # Redis session management
 │
 ├── mobile/                     # React Native mobile app
-│   ├── App.tsx                 # App entry point
+│   ├── App.tsx                 # App entry point with auth flow
 │   ├── src/
 │   │   ├── components/         # UI components
-│   │   ├── screens/            # App screens
-│   │   ├── context/            # Theme context
+│   │   ├── screens/            # App screens (Home, Login)
+│   │   ├── context/            # Theme & Auth contexts
+│   │   │   ├── ThemeContext.tsx    # Light/dark mode management
+│   │   │   └── AuthContext.tsx     # Firebase auth state
+│   │   ├── config/             # Firebase configuration
 │   │   ├── services/           # API & OCR services
 │   │   └── types/              # TypeScript definitions
-│   └── assets/                 # App icons
+│   └── assets/                 # App icons & images
 │
 ├── tests/
 │   ├── test_*.py               # Unit & integration tests
@@ -252,6 +262,13 @@ POST /analyze
 | `REDIS_URL` | Redis connection string | Optional |
 | `LANGCHAIN_API_KEY` | LangSmith API key (tracing) | Optional |
 
+### Firebase Configuration (Mobile App)
+
+Firebase credentials are configured in `mobile/src/config/firebase.ts`. Required for:
+- Google Sign-In authentication
+- Firestore user profile storage
+- Firebase Analytics
+
 ---
 
 ## Tech Stack
@@ -265,8 +282,10 @@ POST /analyze
 | **Tracing** | LangSmith |
 | **Web UI** | Streamlit |
 | **Mobile App** | React Native + Expo |
+| **Authentication** | Firebase Auth (Google Sign-In) |
+| **User Data** | Firestore |
 | **REST API** | FastAPI |
-| **Deployment** | Google Cloud Run |
+| **Deployment** | Railway (API), Cloudflare Pages (Web) |
 
 ---
 
@@ -304,6 +323,7 @@ black .
 
 | Version | Description |
 |---------|-------------|
+| v3.0.0 | Firebase Authentication, user profiles, premium login UI |
 | v2.0.0 | Mobile app, REST API, multi-language OCR |
 | v1.0.0 | Initial release with Streamlit web interface |
 
