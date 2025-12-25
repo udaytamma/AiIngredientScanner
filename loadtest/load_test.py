@@ -72,7 +72,7 @@ TEST_ALLERGIES = [
 ]
 
 TEST_SKIN_TYPES = ["normal", "dry", "oily", "combination", "sensitive"]
-TEST_EXPERTISE = ["beginner", "intermediate", "expert"]
+TEST_EXPERTISE = ["beginner", "expert"]
 
 
 @dataclass
@@ -121,10 +121,12 @@ def make_request(base_url: str, timeout: int = 120) -> RequestResult:
         RequestResult with timing and status.
     """
     timestamp = datetime.now().isoformat()
-    ingredients = random.choice(TEST_INGREDIENTS)
+    ingredients_list = random.choice(TEST_INGREDIENTS)
+    # API expects ingredients as comma-separated string, not list
+    ingredients_str = ", ".join(ingredients_list)
 
     payload = {
-        "ingredients": ingredients,
+        "ingredients": ingredients_str,
         "product_name": f"Test Product {random.randint(1000, 9999)}",
         "allergies": random.choice(TEST_ALLERGIES),
         "skin_type": random.choice(TEST_SKIN_TYPES),
@@ -149,7 +151,7 @@ def make_request(base_url: str, timeout: int = 120) -> RequestResult:
             status_code=response.status_code,
             success=response.status_code == 200,
             error=None if response.status_code == 200 else response.text[:200],
-            ingredient_count=len(ingredients),
+            ingredient_count=len(ingredients_list),
         )
 
     except requests.Timeout:
@@ -160,7 +162,7 @@ def make_request(base_url: str, timeout: int = 120) -> RequestResult:
             status_code=0,
             success=False,
             error="Request timeout",
-            ingredient_count=len(ingredients),
+            ingredient_count=len(ingredients_list),
         )
     except Exception as e:
         duration_ms = (time.perf_counter() - start) * 1000
@@ -170,7 +172,7 @@ def make_request(base_url: str, timeout: int = 120) -> RequestResult:
             status_code=0,
             success=False,
             error=str(e)[:200],
-            ingredient_count=len(ingredients),
+            ingredient_count=len(ingredients_list),
         )
 
 
@@ -252,9 +254,9 @@ def run_load_test(
                 print(f"  [{int(elapsed)}s] Sent: {request_count}, Completed: {completed}, "
                       f"Current RPS: {current_rps:.1f}")
 
-        # Wait for remaining requests
+        # Wait for remaining requests (each request can take 30-60s due to LLM processing)
         print("\nWaiting for pending requests...")
-        for future in as_completed(futures, timeout=180):
+        for future in as_completed(futures, timeout=600):
             try:
                 result = future.result()
                 results.append(result)
