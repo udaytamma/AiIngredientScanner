@@ -1,8 +1,19 @@
 /**
  * User profile selector component.
+ *
+ * Manages user preferences including:
+ * - Theme (light/dark)
+ * - Allergies
+ * - Skin type
+ * - Explanation style
+ * - Account settings (sign out, delete account)
+ *
+ * @module components/ProfileSelector
+ * @author Uday Tamma
+ * @license MIT
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,9 +21,14 @@ import {
   StyleSheet,
   ScrollView,
   Switch,
+  Alert,
+  Linking,
+  Image,
+  Platform,
 } from 'react-native';
 import { UserProfile, SkinType, ExpertiseLevel } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 interface ProfileSelectorProps {
   profile: UserProfile;
@@ -51,7 +67,70 @@ export function ProfileSelector({
   onProfileChange,
 }: ProfileSelectorProps) {
   const { theme, themeMode, toggleTheme } = useTheme();
+  const { user, signInWithGoogle, signOut, deleteAccount, loading } = useAuth();
   const isDark = themeMode === 'dark';
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleSignOut = async () => {
+    if (Platform.OS === 'web') {
+      // Web: use native confirm dialog
+      const confirmed = window.confirm('Are you sure you want to sign out?');
+      if (confirmed) {
+        await signOut();
+      }
+    } else {
+      // Native: use React Native Alert
+      Alert.alert(
+        'Sign Out',
+        'Are you sure you want to sign out?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign Out',
+            onPress: async () => {
+              await signOut();
+            },
+          },
+        ]
+      );
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (Platform.OS === 'web') {
+      // Web: use native confirm dialog
+      const confirmed = window.confirm(
+        'This will permanently delete your account and all associated data. This action cannot be undone.\n\nAre you sure you want to delete your account?'
+      );
+      if (confirmed) {
+        setIsDeleting(true);
+        await deleteAccount();
+        setIsDeleting(false);
+      }
+    } else {
+      // Native: use React Native Alert
+      Alert.alert(
+        'Delete Account',
+        'This will permanently delete your account and all associated data. This action cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              setIsDeleting(true);
+              await deleteAccount();
+              setIsDeleting(false);
+            },
+          },
+        ]
+      );
+    }
+  };
+
+  const handlePrivacyPolicy = () => {
+    Linking.openURL('https://docs.zeroleaf.dev/privacy');
+  };
 
   const toggleAllergy = (allergy: string) => {
     const newAllergies = profile.allergies.includes(allergy)
@@ -179,6 +258,97 @@ export function ProfileSelector({
           ))}
         </View>
       </View>
+
+      {/* Account Section - Only show for authenticated users */}
+      {user && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Account</Text>
+
+          {/* User Info */}
+          <View style={[styles.userInfoRow, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}>
+            {user.photoURL && (
+              <Image source={{ uri: user.photoURL }} style={styles.userAvatar} />
+            )}
+            <View style={styles.userTextContainer}>
+              <Text style={[styles.userName, { color: theme.colors.textPrimary }]}>
+                {user.displayName || 'User'}
+              </Text>
+              <Text style={[styles.userEmail, { color: theme.colors.textSecondary }]}>
+                {user.email}
+              </Text>
+            </View>
+          </View>
+
+          {/* Sign Out Button */}
+          <TouchableOpacity
+            style={[styles.accountButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}
+            onPress={handleSignOut}
+            disabled={loading}
+          >
+            <Text style={[styles.accountButtonText, { color: theme.colors.textPrimary }]}>
+              Sign Out
+            </Text>
+          </TouchableOpacity>
+
+          {/* Privacy Policy Link */}
+          <TouchableOpacity
+            style={[styles.accountButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}
+            onPress={handlePrivacyPolicy}
+          >
+            <Text style={[styles.accountButtonText, { color: theme.colors.textPrimary }]}>
+              Privacy Policy
+            </Text>
+          </TouchableOpacity>
+
+          {/* Delete Account Button */}
+          <TouchableOpacity
+            style={[styles.dangerButton, { backgroundColor: theme.colors.danger + '15', borderColor: theme.colors.danger }]}
+            onPress={handleDeleteAccount}
+            disabled={loading || isDeleting}
+          >
+            <Text style={[styles.dangerButtonText, { color: theme.colors.danger }]}>
+              {isDeleting ? 'Deleting...' : 'Delete Account'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Guest Mode Info */}
+      {!user && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Account</Text>
+          <View style={[styles.guestInfo, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}>
+            <Text style={[styles.guestInfoText, { color: theme.colors.textSecondary }]}>
+              You're using the app as a guest. Sign in with Google to save your preferences and scan history.
+            </Text>
+          </View>
+
+          {/* Sign In with Google Button */}
+          <TouchableOpacity
+            style={[styles.googleSignInButton]}
+            onPress={signInWithGoogle}
+            disabled={loading}
+          >
+            <Image
+              source={require('../../assets/google-icon.png')}
+              style={styles.googleSignInIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.googleSignInText}>
+              {loading ? 'Signing in...' : 'Sign in with Google'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.accountButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}
+            onPress={handlePrivacyPolicy}
+          >
+            <Text style={[styles.accountButtonText, { color: theme.colors.textPrimary }]}>
+              Privacy Policy
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -267,5 +437,91 @@ const styles = StyleSheet.create({
   optionTextSelected: {
     color: '#fff',
     fontWeight: '600',
+  },
+  userInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  userAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  userTextContainer: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  userEmail: {
+    fontSize: 13,
+  },
+  accountButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  accountButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  dangerButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  dangerButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  guestInfo: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  guestInfoText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  googleSignInButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  googleSignInIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 10,
+  },
+  googleSignInText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1f2937',
   },
 });
