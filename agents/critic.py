@@ -9,16 +9,17 @@ Validates report quality using multi-gate validation:
 
 The critic uses a single LLM call with a comprehensive validation prompt
 to evaluate all gates simultaneously.
+
+Uses langchain-google-genai for LangSmith tracing integration.
 """
 
 import re
 import time
 
-import google.genai as genai
-
 from config.settings import get_settings
 from config.logging_config import get_logger
 from config.gemini_logger import get_gemini_logger
+from config.llm import invoke_llm
 from prompts.critic_prompts import VALIDATION_PROMPT
 from state.schema import (
     AnalysisReport,
@@ -173,12 +174,6 @@ def _run_multi_gate_validation(
 
     try:
         settings = get_settings()
-        if not settings.is_configured("genai"):
-            logger.warning("Google Generative AI not configured for validation")
-            return gate_results
-
-        client = genai.Client(api_key=settings.google_api_key)
-        model_name = settings.gemini_model
 
         # Build the validation prompt
         prompt = VALIDATION_PROMPT.format(
@@ -189,22 +184,23 @@ def _run_multi_gate_validation(
             safety_analysis=report["summary"],
         )
 
+        # Call LLM via LangChain (enables LangSmith tracing)
         start_time = time.time()
-        response = client.models.generate_content(model=model_name, contents=prompt)
-        response_text = response.text.strip()
+        response_text = invoke_llm(prompt, run_name="validate_report")
+        response_text = response_text.strip()
         elapsed = time.time() - start_time
 
         # Parse LLM response
         gate_results = _parse_validation_response(response_text, gate_results)
 
-        # Log to Gemini logger
+        # Log to Gemini logger (backup logging)
         gemini_logger = get_gemini_logger()
         gemini_logger.log_interaction(
             operation="multi_gate_validation",
             prompt=prompt,
             response=response_text,
             metadata={
-                "model": model_name,
+                "model": settings.gemini_model,
                 "latency_seconds": f"{elapsed:.3f}",
                 "ingredient_count": ingredient_count,
                 "allergen_list": allergen_list,

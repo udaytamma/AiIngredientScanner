@@ -148,8 +148,10 @@ def lookup_ingredient(ingredient_name: str) -> IngredientData | None:
             AllergyRiskFlag.HIGH if allergy_flag_str == "high" else AllergyRiskFlag.LOW
         )
 
+        # IMPORTANT: Always use the original ingredient_name as the canonical name
+        # to prevent duplicates when vector search returns a similar but different ingredient
         return IngredientData(
-            name=payload.get("name", ingredient_name),
+            name=ingredient_name,
             purpose=payload.get("purpose", "Unknown purpose"),
             safety_rating=payload.get("safety_rating", 5),
             concerns=payload.get("concerns", "No known concerns"),

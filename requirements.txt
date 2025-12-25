@@ -1,6 +1,7 @@
 # Core Framework
 langgraph>=0.2.0
 langchain>=0.3.0
+langchain-google-genai>=2.0.0  # For LangSmith tracing with Gemini
 langchain-google-vertexai>=2.0.0
 langchain-community>=0.3.0
 

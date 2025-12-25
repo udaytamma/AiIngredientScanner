@@ -5,12 +5,18 @@ lacks sufficient data, using Gemini with search grounding.
 
 Uses Google Generative AI SDK (google.genai) with Google Search tool.
 After successful search, saves results to Qdrant for future lookups.
+
+Note: This module uses google.genai directly (not langchain) because
+it requires the GoogleSearch grounding tool which is not available
+in langchain-google-genai. LangSmith tracing is added manually.
 """
 
+import os
 import time
 
 from google import genai
 from google.genai import types
+from langsmith import traceable
 
 from config.settings import get_settings
 from config.logging_config import get_logger
@@ -38,6 +44,17 @@ def _get_genai_client() -> genai.Client:
     return genai.Client(api_key=settings.google_api_key)
 
 
+def _ensure_langsmith_env() -> None:
+    """Ensure LangSmith environment variables are set for tracing."""
+    settings = get_settings()
+    if settings.langchain_api_key:
+        os.environ.setdefault("LANGCHAIN_API_KEY", settings.langchain_api_key)
+    if settings.langchain_tracing_v2:
+        os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
+    if settings.langchain_project:
+        os.environ.setdefault("LANGCHAIN_PROJECT", settings.langchain_project)
+
+
 def _safety_rating_to_risk_score(safety_rating: int) -> float:
     """Convert safety rating (1-10, 10=safest) to risk score (0-1, 1=highest risk).
 
@@ -52,6 +69,7 @@ def _safety_rating_to_risk_score(safety_rating: int) -> float:
     return round((10 - clamped) / 10, 2)
 
 
+@traceable(name="grounded_ingredient_search")
 def grounded_ingredient_search(ingredient_name: str) -> IngredientData | None:
     """Search for ingredient information using Google Search grounding.
 
@@ -65,6 +83,9 @@ def grounded_ingredient_search(ingredient_name: str) -> IngredientData | None:
     Returns:
         IngredientData with search results, or None on failure.
     """
+    # Ensure LangSmith tracing is configured
+    _ensure_langsmith_env()
+
     try:
         client = _get_genai_client()
         settings = get_settings()
@@ -150,7 +171,9 @@ def _parse_search_response(
             data[normalized_key] = value.strip()
 
     # Extract new fields with defaults
-    name = data.get("INGREDIENT_NAME", ingredient_name)
+    # IMPORTANT: Always use the original ingredient_name as the canonical name
+    # to prevent duplicates when the LLM returns a different ingredient name
+    name = ingredient_name
     purpose = data.get("PURPOSE", "Unknown purpose")
     concerns = data.get("CONCERNS", "No known concerns")
     recommendation = data.get("RECOMMENDATION", "Use as directed")

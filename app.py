@@ -28,6 +28,7 @@ from services.session import (
     save_user_profile,
 )
 from graph import run_analysis
+from loadtest.dashboard import render_load_test_dashboard
 
 
 # Initialize logging (application + server logs with daily rotation)
@@ -56,10 +57,13 @@ def init_session_state() -> None:
     if "show_logs" not in st.session_state:
         st.session_state.show_logs = False
 
+    if "show_load_tests" not in st.session_state:
+        st.session_state.show_load_tests = False
+
 
 def render_header() -> None:
     """Render page header with navigation."""
-    col1, col2 = st.columns([4, 1])
+    col1, col2, col3 = st.columns([4, 1, 1])
 
     with col1:
         st.title("🔬 AI Powered Ingredient Safety Analyzer")
@@ -71,7 +75,15 @@ def render_header() -> None:
     with col2:
         st.write("")  # Spacing
         if st.button("📋 Gemini Logs", use_container_width=True):
-            st.session_state.show_logs = not st.session_state.show_logs
+            st.session_state.show_logs = True
+            st.session_state.show_load_tests = False
+            st.rerun()
+
+    with col3:
+        st.write("")  # Spacing
+        if st.button("📊 Load Tests", use_container_width=True):
+            st.session_state.show_load_tests = True
+            st.session_state.show_logs = False
             st.rerun()
 
     st.divider()
@@ -861,14 +873,33 @@ def render_gemini_logs() -> None:
         st.warning(f"No log file found for {selected_date}")
 
 
+def render_load_tests_page() -> None:
+    """Render the load tests dashboard page."""
+    st.subheader("📊 Load Test Dashboard")
+
+    # Back button
+    if st.button("← Back to Analyzer"):
+        st.session_state.show_load_tests = False
+        st.rerun()
+
+    st.divider()
+
+    # Render the dashboard from loadtest module
+    render_load_test_dashboard()
+
+
 def main() -> None:
     """Main application entry point."""
     init_session_state()
     render_header()
 
-    # Show logs page or main analyzer
+    # Show logs page, load tests page, or main analyzer
     if st.session_state.show_logs:
         render_gemini_logs()
+        return
+
+    if st.session_state.show_load_tests:
+        render_load_tests_page()
         return
 
     # Input form

@@ -30,9 +30,13 @@ database lacks sufficient data.
 
 INGREDIENT_RESEARCH_PROMPT = """Research the ingredient "{ingredient_name}" used in food and/or cosmetics.
 
+CRITICAL: You MUST use EXACTLY "{ingredient_name}" as the INGREDIENT_NAME in your response.
+Do NOT substitute, correct, translate, or use an alternative/scientific name.
+Use the EXACT name provided in the query, even if you know a different name for it.
+
 Provide data in the structure below only. Do not give additional data.
 
-INGREDIENT_NAME: [primary name of the ingredient]
+INGREDIENT_NAME: {ingredient_name}
 PURPOSE: [what this ingredient does/its function]
 SAFETY_RATING: [1-10 scale, 10 being safest]
 CONCERNS: [safety concerns in simple language, no technical terms]

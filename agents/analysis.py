@@ -5,16 +5,17 @@ Generates personalized safety analysis using LLM with:
 - Cross-reference with user allergies
 - Prominent warnings for allergens
 - Self-validation for completeness
+
+Uses langchain-google-genai for LangSmith tracing integration.
 """
 
 import re
 import time
 
-import google.genai as genai
-
 from config.settings import get_settings
 from config.logging_config import get_logger
 from config.gemini_logger import get_gemini_logger
+from config.llm import invoke_llm
 from prompts.analysis_prompts import (
     ANALYSIS_PROMPT,
     TONE_INSTRUCTIONS,
@@ -39,22 +40,6 @@ from tools.allergen_matcher import check_allergen_match
 
 
 logger = get_logger(__name__)
-
-
-def _get_genai_client() -> genai.Client:
-    """Get configured Google GenAI client.
-
-    Returns:
-        Configured genai.Client instance.
-
-    Raises:
-        ValueError: If Google API key is not configured.
-    """
-    settings = get_settings()
-    if not settings.is_configured("genai"):
-        raise ValueError("Google AI not configured. Check GOOGLE_API_KEY.")
-
-    return genai.Client(api_key=settings.google_api_key)
 
 
 def analyze_ingredients(state: WorkflowState) -> dict:
@@ -146,6 +131,8 @@ def _generate_llm_analysis(
 ) -> str:
     """Generate LLM-based safety analysis.
 
+    Uses invoke_llm which integrates with LangSmith for tracing.
+
     Args:
         ingredient_data: List of ingredient data.
         user_profile: User profile for personalization.
@@ -154,9 +141,7 @@ def _generate_llm_analysis(
         Formatted analysis string from LLM.
     """
     try:
-        client = _get_genai_client()
         settings = get_settings()
-        model_name = settings.gemini_model
 
         # Get expertise level and tone instruction
         expertise = user_profile["expertise"].value
@@ -183,23 +168,19 @@ def _generate_llm_analysis(
             ingredient_summary=ingredient_summary,
         )
 
-        # Call LLM
+        # Call LLM via LangChain (enables LangSmith tracing)
         start_time = time.time()
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-        )
-        text = response.text
+        text = invoke_llm(prompt, run_name="analyze_ingredients")
         elapsed = time.time() - start_time
 
-        # Log to Gemini logger
+        # Log to Gemini logger (backup logging)
         gemini_logger = get_gemini_logger()
         gemini_logger.log_interaction(
             operation="analyze_ingredients",
             prompt=prompt,
             response=text,
             metadata={
-                "model": model_name,
+                "model": settings.gemini_model,
                 "latency_seconds": f"{elapsed:.3f}",
                 "ingredient_count": len(ingredient_data),
                 "expertise_level": expertise,
