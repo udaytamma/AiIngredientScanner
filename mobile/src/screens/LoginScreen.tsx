@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -17,13 +17,13 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
-  Linking,
   Platform,
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
 
 const { width, height } = Dimensions.get('window');
 
@@ -41,10 +41,7 @@ export function LoginScreen({ onGuestMode }: LoginScreenProps): React.JSX.Elemen
   const { signInWithGoogle, loading, error, clearError } = useAuth();
   const { theme, themeMode } = useTheme();
   const isDark = themeMode === 'dark';
-
-  const handlePrivacyPolicy = () => {
-    Linking.openURL('https://docs.zeroleaf.dev/privacy');
-  };
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
   const handleSignIn = async () => {
     clearError();
@@ -164,7 +161,7 @@ export function LoginScreen({ onGuestMode }: LoginScreenProps): React.JSX.Elemen
           <Text style={styles.footerText}>
             By continuing, you agree to our{' '}
           </Text>
-          <TouchableOpacity onPress={handlePrivacyPolicy}>
+          <TouchableOpacity onPress={() => setShowPrivacyPolicy(true)}>
             <Text style={styles.linkText}>Privacy Policy</Text>
           </TouchableOpacity>
         </View>
@@ -175,6 +172,12 @@ export function LoginScreen({ onGuestMode }: LoginScreenProps): React.JSX.Elemen
           <Text style={styles.brandName}>zeroleaf</Text>
         </View>
       </View>
+
+      {/* Privacy Policy Modal */}
+      <PrivacyPolicyModal
+        visible={showPrivacyPolicy}
+        onClose={() => setShowPrivacyPolicy(false)}
+      />
     </View>
   );
 }
