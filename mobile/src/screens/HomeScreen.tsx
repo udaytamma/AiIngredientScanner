@@ -422,7 +422,10 @@ export function HomeScreen() {
 
         {/* Footer */}
         <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
-          Powered by AI for accurate ingredient safety analysis
+          Powered by AI
+        </Text>
+        <Text style={[styles.footerDisclaimer, { color: theme.colors.textMuted }]}>
+          AI can make mistakes, so double check it
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -818,6 +821,13 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     textAlign: 'center',
     marginTop: 16,
+  },
+  footerDisclaimer: {
+    fontSize: 10,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginTop: 4,
+    opacity: 0.8,
   },
 
   // Profile Container
