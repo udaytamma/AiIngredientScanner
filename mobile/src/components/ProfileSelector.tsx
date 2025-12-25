@@ -22,13 +22,13 @@ import {
   ScrollView,
   Switch,
   Alert,
-  Linking,
   Image,
   Platform,
 } from 'react-native';
 import { UserProfile, SkinType, ExpertiseLevel } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 
 interface ProfileSelectorProps {
   profile: UserProfile;
@@ -70,6 +70,7 @@ export function ProfileSelector({
   const { user, signInWithGoogle, signOut, deleteAccount, loading } = useAuth();
   const isDark = themeMode === 'dark';
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
   const handleSignOut = async () => {
     if (Platform.OS === 'web') {
@@ -128,10 +129,6 @@ export function ProfileSelector({
     }
   };
 
-  const handlePrivacyPolicy = () => {
-    Linking.openURL('https://docs.zeroleaf.dev/privacy');
-  };
-
   const toggleAllergy = (allergy: string) => {
     const newAllergies = profile.allergies.includes(allergy)
       ? profile.allergies.filter((a) => a !== allergy)
@@ -149,6 +146,7 @@ export function ProfileSelector({
   };
 
   return (
+    <>
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Appearance */}
       <View style={styles.section}>
@@ -293,7 +291,7 @@ export function ProfileSelector({
           {/* Privacy Policy Link */}
           <TouchableOpacity
             style={[styles.accountButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}
-            onPress={handlePrivacyPolicy}
+            onPress={() => setShowPrivacyPolicy(true)}
           >
             <Text style={[styles.accountButtonText, { color: theme.colors.textPrimary }]}>
               Privacy Policy
@@ -341,7 +339,7 @@ export function ProfileSelector({
 
           <TouchableOpacity
             style={[styles.accountButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}
-            onPress={handlePrivacyPolicy}
+            onPress={() => setShowPrivacyPolicy(true)}
           >
             <Text style={[styles.accountButtonText, { color: theme.colors.textPrimary }]}>
               Privacy Policy
@@ -350,6 +348,13 @@ export function ProfileSelector({
         </View>
       )}
     </ScrollView>
+
+      {/* Privacy Policy Modal */}
+      <PrivacyPolicyModal
+        visible={showPrivacyPolicy}
+        onClose={() => setShowPrivacyPolicy(false)}
+      />
+    </>
   );
 }
 
