@@ -34,9 +34,12 @@ The AI Ingredient Safety Analyzer helps users understand product ingredient safe
 ### Authentication & User Management (Phase 3)
 - Google Sign-In with Firebase Authentication
 - User profile persistence with Firestore
-- Personalized settings sync across devices
-- Guest mode for anonymous usage
-- GDPR-compliant account deletion
+- PreferencesContext with cloud sync (debounced saves)
+- Guest mode with AsyncStorage fallback
+- ProfileAvatar component (Google photo or initial fallback)
+- In-app Privacy Policy modal
+- Collapsible Danger Zone for account deletion
+- GDPR-compliant data removal
 
 ### Supported Languages (OCR)
 English, French, Spanish, German, Italian, Korean, Japanese, Chinese, Portuguese
@@ -175,9 +178,10 @@ AiIngredientScanner/
 │   ├── src/
 │   │   ├── components/         # UI components
 │   │   ├── screens/            # App screens (Home, Login)
-│   │   ├── context/            # Theme & Auth contexts
-│   │   │   ├── ThemeContext.tsx    # Light/dark mode management
-│   │   │   └── AuthContext.tsx     # Firebase auth state
+│   │   ├── context/            # State management contexts
+│   │   │   ├── AuthContext.tsx         # Firebase auth state
+│   │   │   ├── PreferencesContext.tsx  # User preferences with Firestore sync
+│   │   │   └── ThemeContext.tsx        # Light/dark mode management
 │   │   ├── config/             # Firebase configuration
 │   │   ├── services/           # API & OCR services
 │   │   └── types/              # TypeScript definitions
@@ -323,6 +327,7 @@ black .
 
 | Version | Description |
 |---------|-------------|
+| v3.1.0 | ProfileAvatar, PreferencesContext with Firestore sync, Danger Zone, Privacy Modal |
 | v3.0.0 | Firebase Authentication, user profiles, premium login UI |
 | v2.0.0 | Mobile app, REST API, multi-language OCR |
 | v1.0.0 | Initial release with Streamlit web interface |
