@@ -27,6 +27,14 @@ Cross-platform React Native/Expo application for the AI Ingredient Safety Analyz
 - **Allergen Warnings** - Prominent alerts for matched allergies
 - **Cross-Platform** - Same codebase for mobile and web
 
+### Authentication & User Management
+- **Google Sign-In** - Firebase Authentication with OAuth
+- **Guest Mode** - Anonymous usage without account
+- **Preferences Sync** - Settings sync to Firestore across devices
+- **Profile Avatar** - Google photo or colored initial fallback
+- **Privacy Policy** - In-app modal (works offline)
+- **Account Deletion** - GDPR-compliant with collapsible Danger Zone
+
 ### Supported OCR Languages
 English, French, Spanish, German, Italian, Korean, Japanese, Chinese, Portuguese
 
@@ -104,7 +112,7 @@ npx expo run:ios     # or run:android
 
 ```
 mobile/
-├── App.tsx                         # App entry with ThemeProvider
+├── App.tsx                         # App entry with Auth, Preferences & Theme providers
 ├── app.json                        # Expo configuration
 ├── package.json                    # Dependencies & scripts
 ├── tsconfig.json                   # TypeScript config
@@ -114,7 +122,9 @@ mobile/
 │   │   ├── ImageCapture.tsx        # Camera interface (native)
 │   │   ├── ImageCapture.web.tsx    # Camera interface (web)
 │   │   ├── IngredientCard.tsx      # Expandable ingredient details
-│   │   ├── ProfileSelector.tsx     # User profile & theme settings
+│   │   ├── PrivacyPolicyModal.tsx  # In-app privacy policy display
+│   │   ├── ProfileAvatar.tsx       # User avatar (photo or initial)
+│   │   ├── ProfileSelector.tsx     # User profile, auth & account settings
 │   │   ├── ResultsHeader.tsx       # Analysis summary header
 │   │   ├── RiskBadge.tsx           # Risk level indicator
 │   │   ├── SafetyBar.tsx           # Safety score bar
@@ -122,10 +132,16 @@ mobile/
 │   │   └── index.ts                # Component exports
 │   │
 │   ├── screens/
-│   │   └── HomeScreen.tsx          # Main app screen (navigation hub)
+│   │   ├── HomeScreen.tsx          # Main app screen (navigation hub)
+│   │   └── LoginScreen.tsx         # Authentication screen
 │   │
 │   ├── context/
+│   │   ├── AuthContext.tsx         # Firebase authentication state
+│   │   ├── PreferencesContext.tsx  # User preferences with Firestore sync
 │   │   └── ThemeContext.tsx        # Dark/Light theme state
+│   │
+│   ├── config/
+│   │   └── firebase.ts             # Firebase configuration
 │   │
 │   ├── services/
 │   │   ├── api.ts                  # Backend API client (auto-detects env)
@@ -175,8 +191,24 @@ Expandable card showing ingredient safety details.
 - Expandable details (origin, concerns, recommendation)
 - Allergen match warnings
 
+### ProfileAvatar
+Displays user's Google profile picture or a colored initial fallback.
+
+```tsx
+<ProfileAvatar
+  user={user}
+  size={48}
+  onPress={() => setCurrentScreen('profile')}
+/>
+```
+
+**Behavior:**
+- Shows Google profile photo if available
+- Falls back to colored circle with user's initial
+- Consistent color generation from user ID
+
 ### ProfileSelector
-User profile configuration with theme toggle.
+User profile configuration with authentication and account management.
 
 ```tsx
 <ProfileSelector
@@ -186,10 +218,13 @@ User profile configuration with theme toggle.
 ```
 
 **Settings:**
+- User profile display (ProfileAvatar, name, email)
 - Dark/Light mode toggle
 - Known allergies (multi-select)
 - Skin type selection
 - Explanation style (Simple/Technical)
+- Privacy Policy (in-app modal)
+- Collapsible Danger Zone with account deletion
 
 ### ResultsHeader
 Analysis summary with overall risk assessment.
@@ -425,6 +460,7 @@ npx expo start --clear
 
 | Version | Changes |
 |---------|---------|
+| 3.0.0 | Firebase Auth, PreferencesContext, ProfileAvatar, Danger Zone, Privacy Modal |
 | 2.1.1 | Fixed web camera/gallery flow, improved UX |
 | 2.1.0 | Web platform support, comprehensive tests |
 | 2.0.0 | Dark/light theme, multi-language OCR |
