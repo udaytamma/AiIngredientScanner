@@ -18,17 +18,22 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { ImageCapture } from '../components/ImageCapture';
 import { ProfileSelector } from '../components/ProfileSelector';
+import { ProfileAvatar } from '../components/ProfileAvatar';
 import { ResultsHeader } from '../components/ResultsHeader';
 import { IngredientCard } from '../components/IngredientCard';
 import { extractIngredients } from '../services/ocr';
 import { analyzeIngredients } from '../services/api';
-import { UserProfile, AnalysisResponse } from '../types';
+import { AnalysisResponse } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 
 type Screen = 'home' | 'camera' | 'gallery' | 'profile' | 'results';
 
 export function HomeScreen() {
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const { preferences, getUserProfile } = usePreferences();
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [productName, setProductName] = useState('');
   const [ingredients, setIngredients] = useState('');
@@ -37,11 +42,9 @@ export function HomeScreen() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResponse | null>(
     null
   );
-  const [profile, setProfile] = useState<UserProfile>({
-    allergies: [],
-    skinType: 'normal',
-    expertise: 'beginner',
-  });
+
+  // Get profile from preferences for API calls
+  const profile = getUserProfile();
 
   const handleImageCaptured = async (uri: string) => {
     setCurrentScreen('home');
@@ -158,7 +161,7 @@ export function HomeScreen() {
           <View style={{ width: 50 }} />
         </View>
         <View style={[styles.profileContainer, { backgroundColor: theme.colors.background }]}>
-          <ProfileSelector profile={profile} onProfileChange={setProfile} />
+          <ProfileSelector />
         </View>
       </View>
     );
@@ -252,12 +255,12 @@ export function HomeScreen() {
             <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Ingredient Analyzer</Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>AI-powered safety analysis</Text>
           </View>
-          <TouchableOpacity
-            style={[styles.profileButton, { backgroundColor: theme.colors.card }]}
+          <ProfileAvatar
+            user={user}
+            size={48}
             onPress={() => setCurrentScreen('profile')}
-          >
-            <Text style={styles.profileButtonIcon}>👤</Text>
-          </TouchableOpacity>
+            style={styles.headerAvatar}
+          />
         </View>
 
         {/* Scan Card - Hero Section */}
@@ -372,22 +375,22 @@ export function HomeScreen() {
             <View style={[styles.profileTag, { backgroundColor: theme.colors.profileTagBg, borderColor: theme.colors.profileTagBorder }]}>
               <Text style={[styles.profileTagLabel, { color: theme.colors.profileTagLabel }]}>Skin Type</Text>
               <Text style={[styles.profileTagValue, { color: theme.colors.profileTagText }]}>
-                {profile.skinType.charAt(0).toUpperCase() + profile.skinType.slice(1)}
+                {preferences.skinType.charAt(0).toUpperCase() + preferences.skinType.slice(1)}
               </Text>
             </View>
             <View style={[styles.profileTag, { backgroundColor: theme.colors.profileTagBg, borderColor: theme.colors.profileTagBorder }]}>
               <Text style={[styles.profileTagLabel, { color: theme.colors.profileTagLabel }]}>Expertise</Text>
               <Text style={[styles.profileTagValue, { color: theme.colors.profileTagText }]}>
-                {profile.expertise.charAt(0).toUpperCase() + profile.expertise.slice(1)}
+                {preferences.expertise.charAt(0).toUpperCase() + preferences.expertise.slice(1)}
               </Text>
             </View>
           </View>
 
-          {profile.allergies.length > 0 && (
+          {preferences.allergies.length > 0 && (
             <View style={[styles.allergiesContainer, { borderTopColor: theme.colors.divider }]}>
               <Text style={[styles.allergiesLabel, { color: theme.colors.textSecondary }]}>Allergies</Text>
               <View style={styles.allergyTags}>
-                {profile.allergies.map((allergy, index) => (
+                {preferences.allergies.map((allergy, index) => (
                   <View key={index} style={[styles.allergyTag, { backgroundColor: theme.colors.allergyBg, borderColor: theme.colors.allergyBorder }]}>
                     <Text style={[styles.allergyTagText, { color: theme.colors.allergyText }]}>{allergy}</Text>
                   </View>
@@ -490,21 +493,12 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 2,
   },
-  profileButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
+  headerAvatar: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
-  },
-  profileButtonIcon: {
-    fontSize: 22,
   },
 
   // Scan Card
