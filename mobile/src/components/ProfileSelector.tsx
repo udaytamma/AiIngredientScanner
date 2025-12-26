@@ -24,15 +24,19 @@ import {
   Alert,
   Image,
   Platform,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
-import { UserProfile, SkinType, ExpertiseLevel } from '../types';
+import { SkinType, ExpertiseLevel } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
+import { ProfileAvatar } from './ProfileAvatar';
 
-interface ProfileSelectorProps {
-  profile: UserProfile;
-  onProfileChange: (profile: UserProfile) => void;
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 const ALLERGIES = [
@@ -62,15 +66,31 @@ const EXPERTISE_LEVELS: { value: ExpertiseLevel; label: string }[] = [
   { value: 'expert', label: 'Technical' },
 ];
 
-export function ProfileSelector({
-  profile,
-  onProfileChange,
-}: ProfileSelectorProps) {
-  const { theme, themeMode, toggleTheme } = useTheme();
+/**
+ * Profile selector component.
+ *
+ * Now uses PreferencesContext for state management instead of props.
+ * All preference changes are automatically synced to Firestore for authenticated users.
+ */
+export function ProfileSelector() {
+  const { theme, themeMode } = useTheme();
   const { user, signInWithGoogle, signOut, deleteAccount, loading } = useAuth();
+  const {
+    preferences,
+    setAllergies,
+    setSkinType,
+    setExpertise,
+    setThemePreference,
+  } = usePreferences();
   const isDark = themeMode === 'dark';
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showDangerZone, setShowDangerZone] = useState(false);
+
+  const toggleDangerZone = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowDangerZone(!showDangerZone);
+  };
 
   const handleSignOut = async () => {
     if (Platform.OS === 'web') {
@@ -130,19 +150,24 @@ export function ProfileSelector({
   };
 
   const toggleAllergy = (allergy: string) => {
-    const newAllergies = profile.allergies.includes(allergy)
-      ? profile.allergies.filter((a) => a !== allergy)
-      : [...profile.allergies, allergy];
+    const currentAllergies = preferences.allergies;
+    const newAllergies = currentAllergies.includes(allergy)
+      ? currentAllergies.filter((a) => a !== allergy)
+      : [...currentAllergies, allergy];
 
-    onProfileChange({ ...profile, allergies: newAllergies });
+    setAllergies(newAllergies);
   };
 
-  const setSkinType = (skinType: SkinType) => {
-    onProfileChange({ ...profile, skinType });
+  const handleSkinTypeChange = (skinType: SkinType) => {
+    setSkinType(skinType);
   };
 
-  const setExpertise = (expertise: ExpertiseLevel) => {
-    onProfileChange({ ...profile, expertise });
+  const handleExpertiseChange = (expertise: ExpertiseLevel) => {
+    setExpertise(expertise);
+  };
+
+  const handleThemeToggle = () => {
+    setThemePreference(isDark ? 'light' : 'dark');
   };
 
   return (
@@ -162,7 +187,7 @@ export function ProfileSelector({
           </View>
           <Switch
             value={isDark}
-            onValueChange={toggleTheme}
+            onValueChange={handleThemeToggle}
             trackColor={{ false: '#d1d5db', true: '#818cf8' }}
             thumbColor={isDark ? '#6366f1' : '#f4f4f5'}
             ios_backgroundColor="#d1d5db"
@@ -180,7 +205,7 @@ export function ProfileSelector({
               style={[
                 styles.chip,
                 { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.cardBorder },
-                profile.allergies.includes(allergy) && styles.chipSelected,
+                preferences.allergies.includes(allergy) && styles.chipSelected,
               ]}
               onPress={() => toggleAllergy(allergy)}
             >
@@ -188,7 +213,7 @@ export function ProfileSelector({
                 style={[
                   styles.chipText,
                   { color: theme.colors.textSecondary },
-                  profile.allergies.includes(allergy) &&
+                  preferences.allergies.includes(allergy) &&
                     styles.chipTextSelected,
                 ]}
               >
@@ -209,15 +234,15 @@ export function ProfileSelector({
               style={[
                 styles.option,
                 { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.cardBorder },
-                profile.skinType === type.value && styles.optionSelected,
+                preferences.skinType === type.value && styles.optionSelected,
               ]}
-              onPress={() => setSkinType(type.value)}
+              onPress={() => handleSkinTypeChange(type.value)}
             >
               <Text
                 style={[
                   styles.optionText,
                   { color: theme.colors.textSecondary },
-                  profile.skinType === type.value && styles.optionTextSelected,
+                  preferences.skinType === type.value && styles.optionTextSelected,
                 ]}
               >
                 {type.label}
@@ -238,15 +263,15 @@ export function ProfileSelector({
                 styles.option,
                 styles.optionWide,
                 { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.cardBorder },
-                profile.expertise === level.value && styles.optionSelected,
+                preferences.expertise === level.value && styles.optionSelected,
               ]}
-              onPress={() => setExpertise(level.value)}
+              onPress={() => handleExpertiseChange(level.value)}
             >
               <Text
                 style={[
                   styles.optionText,
                   { color: theme.colors.textSecondary },
-                  profile.expertise === level.value &&
+                  preferences.expertise === level.value &&
                     styles.optionTextSelected,
                 ]}
               >
@@ -262,11 +287,9 @@ export function ProfileSelector({
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Account</Text>
 
-          {/* User Info */}
+          {/* User Info with ProfileAvatar */}
           <View style={[styles.userInfoRow, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}>
-            {user.photoURL && (
-              <Image source={{ uri: user.photoURL }} style={styles.userAvatar} />
-            )}
+            <ProfileAvatar user={user} size={48} style={styles.userAvatar} />
             <View style={styles.userTextContainer}>
               <Text style={[styles.userName, { color: theme.colors.textPrimary }]}>
                 {user.displayName || 'User'}
@@ -298,16 +321,41 @@ export function ProfileSelector({
             </Text>
           </TouchableOpacity>
 
-          {/* Delete Account Button */}
-          <TouchableOpacity
-            style={[styles.dangerButton, { backgroundColor: theme.colors.danger + '15', borderColor: theme.colors.danger }]}
-            onPress={handleDeleteAccount}
-            disabled={loading || isDeleting}
-          >
-            <Text style={[styles.dangerButtonText, { color: theme.colors.danger }]}>
-              {isDeleting ? 'Deleting...' : 'Delete Account'}
-            </Text>
-          </TouchableOpacity>
+          {/* Danger Zone - Collapsible */}
+          <View style={[styles.dangerZoneContainer, { borderColor: theme.colors.danger + '40' }]}>
+            <TouchableOpacity
+              style={styles.dangerZoneHeader}
+              onPress={toggleDangerZone}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dangerZoneTitleRow}>
+                <Text style={[styles.dangerZoneIcon]}>⚠️</Text>
+                <Text style={[styles.dangerZoneTitle, { color: theme.colors.danger }]}>
+                  Danger Zone
+                </Text>
+              </View>
+              <Text style={[styles.dangerZoneChevron, { color: theme.colors.danger }]}>
+                {showDangerZone ? '▲' : '▼'}
+              </Text>
+            </TouchableOpacity>
+
+            {showDangerZone && (
+              <View style={styles.dangerZoneContent}>
+                <Text style={[styles.dangerZoneWarning, { color: theme.colors.textSecondary }]}>
+                  Deleting your account is permanent and cannot be undone.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.deleteButton, { backgroundColor: theme.colors.danger }]}
+                  onPress={handleDeleteAccount}
+                  disabled={loading || isDeleting}
+                >
+                  <Text style={styles.deleteButtonText}>
+                    {isDeleting ? 'Deleting...' : 'Delete My Account'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
       )}
 
@@ -453,9 +501,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   userAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     marginRight: 12,
   },
   userTextContainer: {
@@ -481,16 +526,52 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
-  dangerButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
+  dangerZoneContainer: {
+    marginTop: 16,
     borderWidth: 1,
-    marginTop: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  dangerZoneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dangerZoneTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dangerZoneIcon: {
+    fontSize: 14,
+  },
+  dangerZoneTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dangerZoneChevron: {
+    fontSize: 10,
+  },
+  dangerZoneContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  dangerZoneWarning: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  deleteButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     alignItems: 'center',
   },
-  dangerButtonText: {
-    fontSize: 15,
+  deleteButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '600',
   },
   guestInfo: {

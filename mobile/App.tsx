@@ -34,6 +34,7 @@ import { HomeScreen } from './src/screens/HomeScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { PreferencesProvider } from './src/context/PreferencesContext';
 
 /**
  * Application content wrapper that applies theme-aware styling.
@@ -81,6 +82,7 @@ function AppContent(): React.JSX.Element {
  * 1. SafeAreaProvider - Handles safe area insets for notched devices
  * 2. ThemeProvider - Manages light/dark theme state
  * 3. AuthProvider - Manages Firebase authentication state
+ * 4. PreferencesProvider - Manages user preferences with Firestore sync
  *
  * @returns The complete application component tree
  */
@@ -89,7 +91,9 @@ export default function App(): React.JSX.Element {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <AppContent />
+          <PreferencesProvider>
+            <AppContent />
+          </PreferencesProvider>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
