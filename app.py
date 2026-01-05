@@ -10,8 +10,8 @@ import urllib.parse
 from datetime import datetime
 
 import streamlit as st
-from fpdf import FPDF
 from pathlib import Path
+from pdf_generator import IngredientReportPDF
 
 from config.logging_config import setup_logging, setup_server_logging
 from config.gemini_logger import get_gemini_logger
@@ -367,232 +367,6 @@ def inject_safety_bars_in_table(markdown_text: str, avg_score: int = 5) -> str:
     return '\n'.join(result_lines)
 
 
-def generate_pdf_report(report: dict, product_name: str, avg_score: int) -> bytes:
-    """Generate a formatted PDF report with colors and styled tables.
-
-    Args:
-        report: The analysis report dictionary.
-        product_name: Name of the product analyzed.
-        avg_score: Average safety score.
-
-    Returns:
-        PDF as bytes.
-    """
-    pdf = FPDF(orientation='L', format='A4')  # Landscape A4
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_left_margin(15)
-    pdf.set_right_margin(15)
-
-    # Color definitions (RGB)
-    COLOR_RED = (220, 53, 69)      # #dc3545
-    COLOR_ORANGE = (253, 126, 20)  # #fd7e14
-    COLOR_GREEN = (40, 167, 69)    # #28a745
-    COLOR_GRAY = (51, 51, 51)      # #333
-    COLOR_WHITE = (255, 255, 255)
-    COLOR_BLACK = (0, 0, 0)
-    COLOR_LIGHT_GRAY = (240, 240, 240)
-
-    def get_rating_color(rating: int) -> tuple:
-        """Get color based on safety rating."""
-        if rating <= 3:
-            return COLOR_RED
-        elif rating <= 6:
-            return COLOR_ORANGE
-        else:
-            return COLOR_GREEN
-
-    def safe_text(text: str, max_len: int = 80) -> str:
-        """Truncate and clean text for PDF."""
-        if not text:
-            return ""
-        text = re.sub(r'<[^>]+>', '', str(text))
-        text = text.replace('**', '').replace('*', '')
-        text = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-        text = ''.join(c if ord(c) < 128 else '?' for c in text)
-        text = ' '.join(text.split())
-        if len(text) > max_len:
-            return text[:max_len-3] + "..."
-        return text
-
-    def draw_safety_bar(x: float, y: float, rating: int, width: float = 40, height: float = 6):
-        """Draw a colored safety rating bar."""
-        color = get_rating_color(rating)
-        fill_width = (rating / 10) * width
-
-        # Background bar (gray)
-        pdf.set_fill_color(*COLOR_GRAY)
-        pdf.rect(x, y, width, height, 'F')
-
-        # Filled portion (colored)
-        pdf.set_fill_color(*color)
-        pdf.rect(x, y, fill_width, height, 'F')
-
-        # Rating text
-        pdf.set_xy(x, y)
-        pdf.set_font("Helvetica", "B", 7)
-        pdf.set_text_color(*COLOR_WHITE)
-        pdf.cell(width, height, f"{rating}/10", align="C")
-        pdf.set_text_color(*COLOR_BLACK)
-
-    def extract_rating(text: str) -> int:
-        """Extract numeric rating from text like '7/10' or '7'."""
-        match = re.search(r'(\d+)', str(text))
-        if match:
-            return min(10, max(1, int(match.group(1))))
-        return 5
-
-    # Title
-    pdf.set_font("Helvetica", "B", 20)
-    pdf.set_text_color(*COLOR_BLACK)
-    pdf.cell(0, 14, "Ingredient Safety Analysis Report", ln=True, align="C")
-    pdf.ln(3)
-
-    # Product name and date
-    pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 7, f"Product: {safe_text(product_name, 80)}", ln=True)
-    pdf.cell(0, 7, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True)
-    pdf.ln(5)
-
-    # Overall Risk with colored bar
-    overall_risk = report["overall_risk"].value.upper()
-    pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(80, 10, f"Overall Risk: {overall_risk}")
-
-    # Draw overall safety bar
-    bar_x = pdf.get_x() + 5
-    bar_y = pdf.get_y() + 2
-    draw_safety_bar(bar_x, bar_y, avg_score, width=50, height=8)
-    pdf.ln(12)
-
-    # Parse the LLM summary
-    summary = report.get("summary", "")
-    lines = summary.split('\n')
-
-    # Table column widths (total ~267mm for landscape A4 minus margins)
-    col_widths = [55, 60, 25, 55, 30, 42]  # Ingredient, Purpose, Rating, Concerns, Rec, Allergy
-    table_started = False
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            pdf.ln(2)
-            continue
-
-        # Handle headers
-        if line.startswith('## '):
-            table_started = False
-            pdf.ln(5)
-            pdf.set_font("Helvetica", "B", 12)
-            pdf.set_text_color(*COLOR_BLACK)
-            header_text = safe_text(line.replace('## ', ''), 80)
-            pdf.cell(0, 8, header_text, ln=True)
-            continue
-
-        # Skip separator rows
-        if '---' in line or line.startswith('IMPORTANT') or line.startswith('|--'):
-            continue
-
-        # Handle table rows
-        if line.startswith('|') and '|' in line[1:]:
-            cells = [c.strip() for c in line.split('|')]
-            cells = [c for c in cells if c]
-
-            if not cells:
-                continue
-
-            is_header = 'Ingredient' in str(cells[0])
-
-            if is_header:
-                table_started = True
-                pdf.ln(3)
-                # Draw header row with background
-                pdf.set_fill_color(*COLOR_GRAY)
-                pdf.set_text_color(*COLOR_WHITE)
-                pdf.set_font("Helvetica", "B", 8)
-
-                headers = ["Ingredient", "Purpose", "Safety", "Concerns", "Recommend", "Allergy Risk"]
-                for i, header in enumerate(headers):
-                    pdf.cell(col_widths[i], 8, header, border=1, align="C", fill=True)
-                pdf.ln()
-                pdf.set_text_color(*COLOR_BLACK)
-
-            elif table_started and len(cells) >= 5:
-                # Data row
-                pdf.set_font("Helvetica", "", 7)
-                row_y = pdf.get_y()
-
-                # Ingredient name
-                pdf.set_fill_color(*COLOR_LIGHT_GRAY)
-                pdf.cell(col_widths[0], 10, safe_text(cells[0], 28), border=1, fill=True)
-
-                # Purpose
-                pdf.set_fill_color(*COLOR_WHITE)
-                pdf.cell(col_widths[1], 10, safe_text(cells[1] if len(cells) > 1 else "", 30), border=1)
-
-                # Safety Rating with colored bar
-                rating = extract_rating(cells[2] if len(cells) > 2 else "5")
-                rating_x = pdf.get_x()
-                pdf.cell(col_widths[2], 10, "", border=1)  # Empty cell for bar
-                # Draw bar inside cell
-                draw_safety_bar(rating_x + 2, row_y + 2, rating, width=col_widths[2] - 4, height=6)
-                pdf.set_xy(rating_x + col_widths[2], row_y)
-
-                # Concerns
-                pdf.cell(col_widths[3], 10, safe_text(cells[3] if len(cells) > 3 else "", 28), border=1)
-
-                # Recommendation with color
-                rec_text = safe_text(cells[4] if len(cells) > 4 else "", 15).upper()
-                if "AVOID" in rec_text:
-                    pdf.set_text_color(*COLOR_RED)
-                elif "CAUTION" in rec_text:
-                    pdf.set_text_color(*COLOR_ORANGE)
-                else:
-                    pdf.set_text_color(*COLOR_GREEN)
-                pdf.set_font("Helvetica", "B", 7)
-                pdf.cell(col_widths[4], 10, rec_text, border=1, align="C")
-                pdf.set_text_color(*COLOR_BLACK)
-                pdf.set_font("Helvetica", "", 7)
-
-                # Allergy Risk
-                allergy = safe_text(cells[5] if len(cells) > 5 else "", 20)
-                if "HIGH" in allergy.upper():
-                    pdf.set_text_color(*COLOR_RED)
-                pdf.cell(col_widths[5], 10, allergy, border=1)
-                pdf.set_text_color(*COLOR_BLACK)
-
-                pdf.ln()
-            continue
-
-        # Regular text
-        clean_line = safe_text(line, 120)
-        if clean_line:
-            pdf.set_font("Helvetica", "", 9)
-            pdf.cell(0, 5, clean_line, ln=True)
-
-    # Allergen Warnings with red styling
-    if report.get("allergen_warnings"):
-        pdf.ln(6)
-        pdf.set_fill_color(*COLOR_RED)
-        pdf.set_text_color(*COLOR_WHITE)
-        pdf.set_font("Helvetica", "B", 11)
-        pdf.cell(0, 8, " ALLERGEN WARNINGS ", ln=True, fill=True)
-        pdf.set_text_color(*COLOR_BLACK)
-        pdf.set_font("Helvetica", "", 9)
-        for warning in report["allergen_warnings"]:
-            pdf.set_text_color(*COLOR_RED)
-            pdf.cell(0, 6, f"  ! {safe_text(warning, 100)}", ln=True)
-        pdf.set_text_color(*COLOR_BLACK)
-
-    # Footer
-    pdf.ln(8)
-    pdf.set_font("Helvetica", "I", 8)
-    pdf.set_text_color(128, 128, 128)
-    pdf.cell(0, 5, "Generated by AI Ingredient Safety Analyzer", ln=True, align="C")
-
-    return bytes(pdf.output())
-
-
 def render_results(result: dict) -> None:
     """Render analysis results.
 
@@ -751,9 +525,14 @@ def render_results(result: dict) -> None:
     col1, col2 = st.columns(2)
 
     with col1:
-        # Generate PDF
+        # Generate PDF using shared library
         product_name = report.get("product_name", "Unknown Product")
-        pdf_bytes = generate_pdf_report(report, product_name, avg_score)
+        pdf_template = IngredientReportPDF()
+        pdf_bytes = pdf_template.generate({
+            "report": report,
+            "product_name": product_name,
+            "avg_score": avg_score
+        })
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"ingredient_report_{timestamp}.pdf"
 
