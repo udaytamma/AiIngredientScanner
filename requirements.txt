@@ -24,9 +24,8 @@ langsmith>=0.2.0
 # Web UI
 streamlit>=1.40.0
 
-# PDF Generation (local shared package)
-# Install with: pip install -e ../shared-tools/pdf-generator-py
-pdf-generator @ file://../shared-tools/pdf-generator-py
+# PDF Generation
+fpdf2>=2.8.0
 
 # REST API
 fastapi>=0.115.0
