@@ -379,7 +379,7 @@ class TestAnalysisAgent:
         state_with_data: WorkflowState,
     ) -> None:
         """Test LLM analysis generation succeeds."""
-        mock_settings.return_value.gemini_model = "gemini-2.0-flash"
+        mock_settings.return_value.gemini_model = "gemini-3-flash-preview"
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.text = "## Ingredient Analysis\n\nTest LLM response."

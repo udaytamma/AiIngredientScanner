@@ -374,7 +374,7 @@ REGULATORY_BANS: No"""
             mock_get_client.return_value = mock_client
 
             with patch("tools.grounded_search.get_settings") as mock_settings:
-                mock_settings.return_value.gemini_model = "gemini-2.0-flash"
+                mock_settings.return_value.gemini_model = "gemini-3-flash-preview"
 
                 with patch("tools.grounded_search._save_to_qdrant"):
                     result = grounded_ingredient_search("sodium lauryl sulfate")

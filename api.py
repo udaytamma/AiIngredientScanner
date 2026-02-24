@@ -113,7 +113,7 @@ def _translate_ingredients_to_english(client: genai.Client, ingredients_text: st
     """
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model=settings.gemini_model,
             contents=f"""You are an expert translator specializing in cosmetic and food ingredient terminology.
 
 TASK: Translate the following ingredient list to English.
@@ -169,7 +169,7 @@ async def extract_text_from_image(request: OCRRequest):
         # Use Gemini to extract ingredient text with focused prompt
         # Also detect language and indicate if translation is needed
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model=settings.gemini_model,
             contents=[
                 image_part,
                 """You are an expert at reading product ingredient labels in ANY language.

@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     # Google Generative AI (Gemini API - same approach as EmailAssistant)
     google_api_key: str = Field(default="")
-    gemini_model: str = Field(default="gemini-2.0-flash")
+    gemini_model: str = Field(default="gemini-3-flash-preview")
 
     # Google Cloud / Vertex AI (preserved for future use)
     google_cloud_project: str = Field(default="")
