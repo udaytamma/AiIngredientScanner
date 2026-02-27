@@ -109,7 +109,24 @@ def grounded_ingredient_search(ingredient_name: str) -> IngredientData | None:
             contents=prompt,
             config=config,
         )
-        text = response.text
+        # response.text can raise ValueError if no text parts exist
+        try:
+            text = response.text
+        except (ValueError, AttributeError):
+            text = ""
+            # Fallback: extract from response parts
+            try:
+                for candidate in response.candidates:
+                    for part in candidate.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            text += part.text
+            except Exception:
+                pass
+
+        if not text:
+            logger.warning(f"Empty response from Gemini for '{ingredient_name}'")
+            return None
+
         elapsed = time.time() - start_time
 
         # Log to Gemini logger

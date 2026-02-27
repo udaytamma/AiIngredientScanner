@@ -90,4 +90,18 @@ def invoke_llm(prompt: str, run_name: str = "llm_call") -> str:
         config={"run_name": run_name}
     )
 
-    return response.content
+    # response.content can be a str or a list of content parts
+    # (multipart response from Gemini). Normalize to str.
+    content = response.content
+    if isinstance(content, list):
+        parts = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, dict) and part.get("type") == "text":
+                parts.append(part.get("text", ""))
+            else:
+                parts.append(str(part))
+        content = "\n".join(parts)
+
+    return content
