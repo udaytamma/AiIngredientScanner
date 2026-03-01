@@ -370,21 +370,17 @@ class TestAnalysisAgent:
         assert fragrance_assessment["is_allergen_match"] is True
         assert len(warnings) > 0
 
-    @patch("agents.analysis._get_genai_client")
+    @patch("agents.analysis.invoke_llm")
     @patch("agents.analysis.get_settings")
     def test_generate_llm_analysis_success(
         self,
         mock_settings: MagicMock,
-        mock_get_client: MagicMock,
+        mock_invoke_llm: MagicMock,
         state_with_data: WorkflowState,
     ) -> None:
         """Test LLM analysis generation succeeds."""
         mock_settings.return_value.gemini_model = "gemini-3-flash-preview"
-        mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.text = "## Ingredient Analysis\n\nTest LLM response."
-        mock_client.models.generate_content.return_value = mock_response
-        mock_get_client.return_value = mock_client
+        mock_invoke_llm.return_value = "## Ingredient Analysis\n\nTest LLM response."
 
         with patch("agents.analysis.get_gemini_logger") as mock_logger:
             mock_logger.return_value.log_interaction = MagicMock()
@@ -394,16 +390,16 @@ class TestAnalysisAgent:
             )
 
         assert "Test LLM response" in result
-        mock_client.models.generate_content.assert_called_once()
+        mock_invoke_llm.assert_called_once()
 
-    @patch("agents.analysis._get_genai_client")
+    @patch("agents.analysis.invoke_llm")
     def test_generate_llm_analysis_fallback_on_error(
         self,
-        mock_get_client: MagicMock,
+        mock_invoke_llm: MagicMock,
         state_with_data: WorkflowState,
     ) -> None:
         """Test LLM analysis falls back on error."""
-        mock_get_client.side_effect = Exception("API Error")
+        mock_invoke_llm.side_effect = Exception("API Error")
 
         result = _generate_llm_analysis(
             state_with_data["ingredient_data"],
