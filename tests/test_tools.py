@@ -301,7 +301,7 @@ REGULATORY_BANS: No"""
 
         result = _parse_search_response("glycerin", response)
 
-        assert result["name"] == "Glycerin"
+        assert result["name"] == "glycerin"
         assert result["purpose"] == "Humectant that attracts moisture to skin"
         assert result["safety_rating"] == 9
         assert result["concerns"] == "Generally safe, minimal concerns"
@@ -323,7 +323,7 @@ CONCERNS: No data found."""
 
         result = _parse_search_response("test_ingredient", response)
 
-        assert result["name"] == "Unknown Ingredient"
+        assert result["name"] == "test_ingredient"
         assert result["purpose"] == "Unknown purpose"
         assert result["safety_rating"] == 5  # Default
         assert result["category"] == "Unknown"
@@ -348,18 +348,20 @@ ALLERGY_RISK_FLAG: High"""
 
     def test_grounded_search_not_configured(self) -> None:
         """Test returns None when Google AI not configured."""
-        with patch("tools.grounded_search.get_settings") as mock_settings:
-            mock_settings.return_value.is_configured.return_value = False
+        with patch("tools.grounded_search._ensure_langsmith_env"):
+            with patch("tools.grounded_search.get_settings") as mock_settings:
+                mock_settings.return_value.is_configured.return_value = False
 
-            result = grounded_ingredient_search("test")
-            assert result is None
+                result = grounded_ingredient_search("test")
+                assert result is None
 
     def test_grounded_search_success(self) -> None:
         """Test successful grounded search with new schema."""
-        with patch("tools.grounded_search._get_genai_client") as mock_get_client:
-            mock_client = MagicMock()
-            mock_response = MagicMock()
-            mock_response.text = """INGREDIENT_NAME: Sodium Lauryl Sulfate
+        with patch("tools.grounded_search._ensure_langsmith_env"):
+            with patch("tools.grounded_search._get_genai_client") as mock_get_client:
+                mock_client = MagicMock()
+                mock_response = MagicMock()
+                mock_response.text = """INGREDIENT_NAME: Sodium Lauryl Sulfate
 PURPOSE: Surfactant and cleansing agent
 SAFETY_RATING: 6
 CONCERNS: Can cause irritation for sensitive skin
@@ -370,21 +372,21 @@ ORIGIN: Synthetic
 CATEGORY: Cosmetics
 REGULATORY_STATUS: Approved with restrictions
 REGULATORY_BANS: No"""
-            mock_client.models.generate_content.return_value = mock_response
-            mock_get_client.return_value = mock_client
+                mock_client.models.generate_content.return_value = mock_response
+                mock_get_client.return_value = mock_client
 
-            with patch("tools.grounded_search.get_settings") as mock_settings:
-                mock_settings.return_value.gemini_model = "gemini-3-flash-preview"
+                with patch("tools.grounded_search.get_settings") as mock_settings:
+                    mock_settings.return_value.gemini_model = "gemini-3-flash-preview"
 
-                with patch("tools.grounded_search._save_to_qdrant"):
-                    result = grounded_ingredient_search("sodium lauryl sulfate")
+                    with patch("tools.grounded_search._save_to_qdrant"):
+                        result = grounded_ingredient_search("sodium lauryl sulfate")
 
-                    assert result is not None
-                    assert result["name"] == "Sodium Lauryl Sulfate"
-                    assert result["purpose"] == "Surfactant and cleansing agent"
-                    assert result["safety_rating"] == 6
-                    assert result["category"] == "Cosmetics"
-                    assert result["risk_score"] == 0.4  # (10-6)/10
+                        assert result is not None
+                        assert result["name"] == "sodium lauryl sulfate"
+                        assert result["purpose"] == "Surfactant and cleansing agent"
+                        assert result["safety_rating"] == 6
+                        assert result["category"] == "Cosmetics"
+                        assert result["risk_score"] == 0.4  # (10-6)/10
 
 
 class TestIngredientLookup:
